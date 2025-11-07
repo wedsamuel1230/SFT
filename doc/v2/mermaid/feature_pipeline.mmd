@@ -1,0 +1,9 @@
+flowchart LR
+  Raw[IMU 資料] --> Clean[濾波]
+  Clean --> Segment[動作分段]
+  Segment --> Features[特徵提取]
+  Features --> Extend[擴展特徵]
+  Extend --> Model[推論模型]
+  Model --> Classify[分類結果]
+  Classify --> Score[品質評分]
+  Score --> Log[日誌儲存]

@@ -1,0 +1,17 @@
+flowchart LR
+  Edge[邊緣端: 球拍]
+    IMU[MPU-6050 6軸]
+    MCU[ESP32-C3 Mini]
+  Link[BLE 5.0]
+    BLE[BLE GATT 服務: 封包聚合/低功耗]
+  Mobile[移動端: Android 原生 App]
+    FE[特徵工程]
+    ML[決策樹 / 輕量CNN 推論]
+    UI[即時可視化/日誌/趨勢]
+  Wearable[Galaxy Watch: 可選]
+    HR[心率/步數/卡路里]
+  IMU -->|I2C| MCU
+  MCU -->|資料預處理/時間戳| MCU
+  MCU -->|BLE 封包| BLE --> FE
+  FE --> ML --> UI
+  Wearable -. 數據同步 .-> UI

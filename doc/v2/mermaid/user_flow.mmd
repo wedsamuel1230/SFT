@@ -1,0 +1,11 @@
+flowchart TD
+  Start([開始訓練]) --> Acquire((邊緣端採集: 陀螺儀/加速度))
+  Acquire --> Pack((封包與時間同步: BLE 5.0 傳輸))
+  Pack --> Feature((手機端特徵提取))
+  Feature --> Inference((手機端模型推論: 決策樹/輕量CNN))
+  Inference --> Feedback{即時回饋}
+  Feedback -->|提示/建議| HUD((視覺化提示))
+  Feedback -->|分數| Score((質量評分 1-10))
+  Score --> Log((訓練日誌紀錄))
+  Log --> Trend((進度分析/統計圖表))
+  Trend --> Next([下一輪迭代])
