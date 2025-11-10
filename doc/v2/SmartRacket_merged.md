@@ -1,3 +1,11 @@
+"ppt": {
+		"command": "uvx",
+		"args": [
+			"--from", "office-powerpoint-mcp-server", "ppt_mcp_server"
+		],
+		"env": {}
+		}
+
 # SmartRacket Coach 智能球拍教練系統
 ## 讓每次揮拍都能被看見與改變
 

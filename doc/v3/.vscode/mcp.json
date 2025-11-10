@@ -1,0 +1,142 @@
+{
+	"servers": {
+		"mermaid": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@peng-shawn/mermaid-mcp-server"
+			],
+			"type": "stdio"
+		},
+		"microsoft/markitdown": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"markitdown-mcp==0.0.1a4"
+			],
+			"gallery": "https://api.mcp.github.com/v0/servers/976a2f68-e16c-4e2b-9709-7133487f8c14",
+			"version": "1.0.0"
+		},
+		"fetch": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"mcp-server-fetch"
+			]
+		},
+		"sequential-thinking": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-sequential-thinking"
+			]
+		},
+		"time": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"mcp-server-time"
+			]
+		},
+		"upstash/context7": {
+			"type": "http",
+			"url": "https://mcp.context7.com/mcp",
+			"headers": {
+				"undefined": "{context7_api_key}"
+			},
+			"gallery": "https://api.mcp.github.com/v0/servers/dcec7705-b81b-4e0f-8615-8032604be7ad",
+			"version": "1.0.0"
+		},
+		"microsoft/playwright-mcp": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"@playwright/mcp@latest"
+			],
+			"gallery": "https://api.mcp.github.com/2025-09-15/v0/servers/41b79849-7e6c-4fc7-82c0-5a611ea21523",
+			"version": "0.0.1-seed"
+		},
+		"chromedevtools/chrome-devtools-mcp": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"chrome-devtools-mcp@latest",
+				"--browserUrl",
+				"${input:browser_url}",
+				"--headless",
+				"${input:headless}",
+				"--isolated",
+				"${input:isolated}",
+				"--channel",
+				"stable"
+			],
+			"gallery": "https://api.mcp.github.com/2025-09-15/v0/servers/13749964-2447-4c31-bcab-32731cced504",
+			"version": "0.0.1-seed"
+		},
+		"microsoftdocs/mcp": {
+			"type": "http",
+			"url": "https://learn.microsoft.com/api/mcp",
+			"gallery": "https://api.mcp.github.com/2025-09-15/v0/servers/e0455530-d34a-4795-8dc6-b2888ae76c27",
+			"version": "1.0.0"
+		},
+		"perplexity-ask": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@chatmcp/server-perplexity-ask"
+			],
+			"env": {
+				"PERPLEXITY_API_KEY": "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"
+			},
+			"type": "stdio"
+		},
+		"ppt_mcp_server": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"--from",
+				"office-powerpoint-mcp-server",
+				"ppt_mcp_server"
+			]
+		},
+	},
+	"inputs": [
+		{
+			"id": "browser_url",
+			"type": "promptString",
+			"description": "Optional: connect to an already-running Chrome (remote debugging / port-forward). Example: http://127.0.0.1:9222",
+			"password": false
+		},
+		{
+			"id": "headless",
+			"type": "promptString",
+			"description": "Run Chrome headless (true/false). Default: false",
+			"password": false
+		},
+		{
+			"id": "chrome_executable_path",
+			"type": "promptString",
+			"description": "Path to a specific Chrome/Chromium binary.",
+			"password": false
+		},
+		{
+			"id": "isolated",
+			"type": "promptString",
+			"description": "Use a temporary user-data-dir (true/false). Default: false",
+			"password": false
+		},
+		{
+			"id": "chrome_channel",
+			"type": "promptString",
+			"description": "Chrome channel: stable | canary | beta | dev (default: stable).",
+			"password": false
+		},
+		{
+			"id": "api_key",
+			"type": "promptString",
+			"description": "your API key",
+			"password": true
+		}
+	]
+}
