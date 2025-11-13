@@ -87,7 +87,7 @@
 				"@chatmcp/server-perplexity-ask"
 			],
 			"env": {
-				"PERPLEXITY_API_KEY": "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"
+				"PERPLEXITY_API_KEY": "pplx-"
 			},
 			"type": "stdio"
 		},
