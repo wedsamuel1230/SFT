@@ -1,0 +1,64 @@
+<resources>
+    <string name="app_name">SmartRacket Coach</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_training">Training</string>
+    <string name="nav_analytics">Analytics</string>
+    <string name="nav_highlights">Highlights</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home Screen -->
+    <string name="welcome_message">Welcome to SmartRacket Coach</string>
+    <string name="today_summary">Today\'s Summary</string>
+    <string name="total_strokes">Total Strokes</string>
+    <string name="avg_score">Avg Score</string>
+    <string name="sessions">Sessions</string>
+
+    <!-- Training Screen -->
+    <string name="start_training">Start Training</string>
+    <string name="stop_training">Stop Training</string>
+    <string name="pause_training">Pause</string>
+    <string name="resume_training">Resume</string>
+    <string name="save_highlight">Save Highlight</string>
+    <string name="session_complete">Session Complete!</string>
+
+    <!-- Bluetooth -->
+    <string name="connect_paddle">Connect Paddle</string>
+    <string name="scanning">Scanning for devices…</string>
+    <string name="connected">Connected</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="bluetooth_permission_required">Bluetooth permission is required to connect to your SmartRacket paddle.</string>
+
+    <!-- Analytics -->
+    <string name="history">History</string>
+    <string name="statistics">Statistics</string>
+    <string name="trends">Trends</string>
+    <string name="stroke_distribution">Stroke Distribution</string>
+    <string name="score_trend">Score Trend</string>
+
+    <!-- Highlights -->
+    <string name="no_highlights">No Highlights Yet</string>
+    <string name="auto_saved">Auto-saved</string>
+    <string name="share">Share</string>
+    <string name="delete">Delete</string>
+
+    <!-- Settings -->
+    <string name="bluetooth_settings">Bluetooth</string>
+    <string name="health_settings">Health &amp; Fitness</string>
+    <string name="training_settings">Training</string>
+    <string name="about">About</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="send_feedback">Send Feedback</string>
+    <string name="clear_all_data">Clear All Data</string>
+
+    <!-- Health Connect -->
+    <string name="health_connect">Health Connect</string>
+    <string name="health_connect_description">Sync heart rate data during training</string>
+
+    <!-- Errors -->
+    <string name="error_bluetooth_not_enabled">Bluetooth is not enabled</string>
+    <string name="error_connection_failed">Connection failed</string>
+    <string name="error_session_failed">Failed to save session</string>
+</resources>

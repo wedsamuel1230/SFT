@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Health Connect permissions for Samsung Health integration -->
+    <array name="health_permissions">
+        <item>android.permission.health.READ_HEART_RATE</item>
+        <item>android.permission.health.READ_ACTIVE_CALORIES_BURNED</item>
+        <item>android.permission.health.READ_TOTAL_CALORIES_BURNED</item>
+        <item>android.permission.health.READ_EXERCISE</item>
+        <item>android.permission.health.WRITE_EXERCISE</item>
+    </array>
+</resources>
+

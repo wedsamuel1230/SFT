@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SmartRacket Brand Colors -->
+    <color name="primary_green">#2E7D32</color>
+    <color name="primary_green_light">#60AD5E</color>
+    <color name="primary_green_dark">#005005</color>
+
+    <color name="secondary_orange">#FF6F00</color>
+    <color name="secondary_orange_light">#FFA040</color>
+    <color name="secondary_orange_dark">#C43E00</color>
+
+    <!-- Surface colors -->
+    <color name="surface">#FFFBFE</color>
+    <color name="surface_dark">#1C1B1F</color>
+
+    <!-- Status colors -->
+    <color name="success_green">#4CAF50</color>
+    <color name="warning_orange">#FF9800</color>
+    <color name="error_red">#F44336</color>
+    <color name="info_blue">#2196F3</color>
+
+    <!-- Score colors -->
+    <color name="score_excellent">#4CAF50</color>
+    <color name="score_good">#8BC34A</color>
+    <color name="score_average">#FF9800</color>
+    <color name="score_poor">#F44336</color>
+
+    <!-- Heart rate -->
+    <color name="heart_rate_pink">#E91E63</color>
+
+    <!-- Basic colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Legacy colors (for backward compatibility) -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+</resources>
