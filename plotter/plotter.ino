@@ -51,10 +51,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
 
 void setup(void) {
   Serial.begin(115200);
-  while (!Serial) {
-    delay(10); // will pause Zero, Leonardo, etc until serial console opens
-  }
-  
+  delay(1000);
   Serial.println("SFT Project");
   // Try to initialize!
   if (!mpu.begin()) {
@@ -82,6 +79,7 @@ void setup(void) {
       BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
     characteristics[i]->setCallbacks(new MyCallbacks());
     characteristics[i]->setValue("0.0");
+    delay(100);
   }
   pService->start();
 
