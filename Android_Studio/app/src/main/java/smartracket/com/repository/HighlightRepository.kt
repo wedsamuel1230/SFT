@@ -57,10 +57,12 @@ class HighlightRepository @Inject constructor(
     }
 
     /**
-     * Check if a stroke qualifies for auto-save.
+     * Auto-save is disabled. Highlights are now triggered only by BLE button press
+     * or manual save when connected.
      */
+    @Deprecated("Auto-save is disabled. Use BLE trigger or manual save instead.")
     fun shouldAutoSave(score: Int): Boolean {
-        return score >= AUTO_SAVE_SCORE_THRESHOLD
+        return false
     }
 
     /**

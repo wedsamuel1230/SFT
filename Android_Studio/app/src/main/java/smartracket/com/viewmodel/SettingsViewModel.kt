@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import smartracket.com.db.SmartRacketDatabase
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.model.DevicePairing
+import smartracket.com.model.Language
 import smartracket.com.repository.BluetoothRepository
 import smartracket.com.repository.HealthRepository
 import java.text.SimpleDateFormat
@@ -46,7 +47,7 @@ class SettingsViewModel @Inject constructor(
         private val AUTO_SAVE_THRESHOLD = intPreferencesKey("auto_save_threshold")
         private val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         private val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
-        private val CHINESE_LANGUAGE = booleanPreferencesKey("chinese_language")
+        private val LANGUAGE_CODE = stringPreferencesKey("language_code")
     }
 
     private val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
@@ -73,8 +74,8 @@ class SettingsViewModel @Inject constructor(
     val vibrationEnabled: StateFlow<Boolean> = _vibrationEnabled.asStateFlow()
 
     // Language settings
-    private val _isChineseLanguage = MutableStateFlow(false)
-    val isChineseLanguage: StateFlow<Boolean> = _isChineseLanguage.asStateFlow()
+    private val _language = MutableStateFlow(Language.ENGLISH)
+    val language: StateFlow<Language> = _language.asStateFlow()
 
     // Clear data dialog
     private val _showClearDataDialog = MutableStateFlow(false)
@@ -91,7 +92,7 @@ class SettingsViewModel @Inject constructor(
                 _autoSaveThreshold.value = preferences[AUTO_SAVE_THRESHOLD] ?: 8
                 _keepScreenOn.value = preferences[KEEP_SCREEN_ON] ?: true
                 _vibrationEnabled.value = preferences[VIBRATION_ENABLED] ?: true
-                _isChineseLanguage.value = preferences[CHINESE_LANGUAGE] ?: false
+                _language.value = Language.fromCode(preferences[LANGUAGE_CODE] ?: "en")
             }
         }
     }
@@ -157,10 +158,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setChineseLanguage(value: Boolean) {
+    fun setLanguage(language: Language) {
         viewModelScope.launch {
             context.dataStore.edit { preferences ->
-                preferences[CHINESE_LANGUAGE] = value
+                preferences[LANGUAGE_CODE] = language.code
             }
         }
     }

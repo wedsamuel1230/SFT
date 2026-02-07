@@ -3,6 +3,7 @@ package smartracket.com.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,6 +25,7 @@ import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.viewmodel.AnalyticsViewModel
 import smartracket.com.viewmodel.SessionDetailUi
 import smartracket.com.viewmodel.StrokeDistributionItem
@@ -50,7 +53,8 @@ fun AnalyticsScreen(
     val isLoading by viewModel.isLoading.collectAsState()
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("History", "Statistics", "Trends")
+    val strings = LocalAppStrings.current
+    val tabs = listOf(strings.historyTab, strings.statisticsTab, strings.trendsTab)
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -109,21 +113,34 @@ private fun SessionHistoryTab(
     onDateFilterChange: (DateFilterOption) -> Unit,
     onDeleteSession: (Long) -> Unit
 ) {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
         // Date filter chips
-        Row(
+        LazyRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            DateFilterOption.entries.forEach { option ->
+            items(DateFilterOption.entries.toList()) { option ->
+                val chipLabel = when (option) {
+                    DateFilterOption.ALL -> strings.dateFilterAll
+                    DateFilterOption.WEEK -> strings.dateFilterWeek
+                    DateFilterOption.MONTH -> strings.dateFilterMonth
+                    DateFilterOption.THREE_MONTHS -> strings.dateFilterThreeMonths
+                }
                 FilterChip(
                     selected = dateFilter == option,
                     onClick = { onDateFilterChange(option) },
-                    label = { Text(option.displayName) }
+                    label = {
+                        Text(
+                            text = chipLabel,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 )
             }
         }
@@ -140,8 +157,8 @@ private fun SessionHistoryTab(
         } else if (sessions.isEmpty()) {
             EmptyStateMessage(
                 icon = Icons.Default.History,
-                title = "No Training Sessions",
-                message = "Start your first training session to see your history here."
+                title = strings.noTrainingSessions,
+                message = strings.startFirstSession
             )
         } else {
             LazyColumn(
@@ -166,6 +183,7 @@ private fun SessionCard(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Card(
@@ -228,7 +246,7 @@ private fun SessionCard(
             IconButton(onClick = { showDeleteDialog = true }) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = strings.deleteLabel,
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -238,8 +256,8 @@ private fun SessionCard(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Session?") },
-            text = { Text("This will permanently delete this training session and all associated data.") },
+            title = { Text(strings.deleteSessionTitle) },
+            text = { Text(strings.deleteSessionMessage) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -247,12 +265,12 @@ private fun SessionCard(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(strings.delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(strings.cancel)
                 }
             }
         )
@@ -264,6 +282,7 @@ private fun StatisticsTab(
     strokeDistribution: List<StrokeDistributionItem>,
     sessions: List<SessionDetailUi>
 ) {
+    val strings = LocalAppStrings.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -279,7 +298,7 @@ private fun StatisticsTab(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Overview",
+                        text = strings.overview,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -292,17 +311,17 @@ private fun StatisticsTab(
                     ) {
                         StatColumn(
                             value = "${sessions.size}",
-                            label = "Sessions"
+                            label = strings.sessions
                         )
                         StatColumn(
                             value = "${sessions.sumOf { it.totalStrokes }}",
-                            label = "Total Strokes"
+                            label = strings.totalStrokes
                         )
                         StatColumn(
                             value = if (sessions.isNotEmpty())
                                 String.format("%.1f", sessions.map { it.avgScore }.average())
                             else "-",
-                            label = "Avg Score"
+                            label = strings.avgScore
                         )
                     }
                 }
@@ -318,7 +337,7 @@ private fun StatisticsTab(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Stroke Distribution",
+                        text = strings.strokeDistribution,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -334,7 +353,7 @@ private fun StatisticsTab(
                         )
                     } else {
                         Text(
-                            text = "No data available",
+                            text = strings.noDataAvailable,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
@@ -352,7 +371,7 @@ private fun StatisticsTab(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Stroke Breakdown",
+                        text = strings.strokeBreakdown,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -467,6 +486,7 @@ private fun StrokeTypeRow(item: StrokeDistributionItem) {
 private fun TrendsTab(
     scoreTrend: List<ScoreTrendPoint>
 ) {
+    val strings = LocalAppStrings.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -481,7 +501,7 @@ private fun TrendsTab(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Score Trend",
+                        text = strings.scoreTrend,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -498,8 +518,8 @@ private fun TrendsTab(
                     } else {
                         EmptyStateMessage(
                             icon = Icons.Default.TrendingUp,
-                            title = "Not Enough Data",
-                            message = "Complete more training sessions to see your score trends."
+                            title = strings.notEnoughData,
+                            message = strings.completeMoreSessions
                         )
                     }
                 }
@@ -515,7 +535,7 @@ private fun TrendsTab(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Performance Insights",
+                        text = strings.performanceInsights,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -526,7 +546,7 @@ private fun TrendsTab(
                         val trend = scoreTrend.last().score - scoreTrend.first().score
                         val trendIcon = if (trend >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown
                         val trendColor = if (trend >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
-                        val trendText = if (trend >= 0) "improving" else "declining"
+                        val trendText = if (trend >= 0) strings.improving else strings.declining
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically
@@ -616,6 +636,7 @@ private fun SessionDetailSheet(
     session: SessionDetailUi,
     onDismiss: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -634,20 +655,20 @@ private fun SessionDetailSheet(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            StatColumn(value = "${session.totalStrokes}", label = "Strokes")
+            StatColumn(value = "${session.totalStrokes}", label = strings.strokes)
             StatColumn(
                 value = String.format("%.1f", session.avgScore),
-                label = "Avg Score",
+                label = strings.avgScore,
                 valueColor = getScoreColor(session.avgScore)
             )
-            StatColumn(value = session.durationFormatted, label = "Duration")
+            StatColumn(value = session.durationFormatted, label = strings.duration)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         // Stroke distribution
         Text(
-            text = "Stroke Distribution",
+            text = strings.strokeDistribution,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
@@ -676,7 +697,7 @@ private fun SessionDetailSheet(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Close")
+            Text(strings.close)
         }
 
         Spacer(modifier = Modifier.height(16.dp))

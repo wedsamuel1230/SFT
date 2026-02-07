@@ -111,6 +111,22 @@ class TrainingViewModel @Inject constructor(
             }
         }
         
+        // Listen for BLE highlight button press
+        viewModelScope.launch {
+            bluetoothRepository.highlightTrigger.collect {
+                if (_sessionState.value == SessionState.ACTIVE) {
+                    val lastStroke = _lastStroke.value ?: return@collect
+                    val strokeInfo = StrokeBufferInfo(
+                        strokeType = lastStroke.strokeType,
+                        score = lastStroke.score,
+                        confidence = lastStroke.confidence,
+                        feedback = lastStroke.feedback
+                    )
+                    saveHighlight(isAutoSave = false, strokeInfo = strokeInfo)
+                }
+            }
+        }
+
         // Poll heart rate periodically
         viewModelScope.launch {
             while (true) {
@@ -278,11 +294,6 @@ class TrainingViewModel @Inject constructor(
                 strokeInfo = strokeInfo
             )
             
-            // Check for auto-save highlight
-            if (highlightRepository.shouldAutoSave(stroke.score)) {
-                saveHighlight(isAutoSave = true, strokeInfo = strokeInfo)
-            }
-            
         } catch (e: Exception) {
             _errorMessage.value = "Stroke processing error: ${e.message}"
         }
@@ -292,8 +303,11 @@ class TrainingViewModel @Inject constructor(
     
     /**
      * Manually save current moment as highlight.
+     * Only allowed when BLE is connected.
      */
     fun saveHighlightManually() {
+        // Only allow manual save when BLE is connected
+        if (!bluetoothRepository.isConnected()) return
         val lastStroke = _lastStroke.value ?: return
         
         val strokeInfo = StrokeBufferInfo(

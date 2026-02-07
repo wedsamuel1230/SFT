@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.viewmodel.HighlightsViewModel
 import smartracket.com.viewmodel.HighlightItemUi
 
@@ -43,22 +44,23 @@ fun HighlightsScreen(
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedHighlight by viewModel.selectedHighlight.collectAsState()
+    val strings = LocalAppStrings.current
 
-    val filterOptions = listOf("All", "Auto-saved", "Manual", "High Score")
+    val filterOptions = listOf(strings.filterAll, strings.filterAutoSaved, strings.filterManual, strings.filterHighScore)
 
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
         // Header
         TopAppBar(
-            title = { Text("Highlights") },
+            title = { Text(strings.highlightsTitle) },
             actions = {
                 // View toggle (grid/list)
                 var isGridView by remember { mutableStateOf(true) }
                 IconButton(onClick = { isGridView = !isGridView }) {
                     Icon(
                         imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
-                        contentDescription = "Toggle view"
+                        contentDescription = strings.toggleView
                     )
                 }
             }
@@ -75,7 +77,13 @@ fun HighlightsScreen(
                 FilterChip(
                     selected = selectedFilter == filter,
                     onClick = { viewModel.setFilter(filter) },
-                    label = { Text(filter) }
+                    label = {
+                        Text(
+                            text = filter,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 )
             }
         }
@@ -120,6 +128,7 @@ fun HighlightsScreen(
 
 @Composable
 private fun EmptyHighlightsState() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -137,7 +146,7 @@ private fun EmptyHighlightsState() {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "No Highlights Yet",
+            text = strings.noHighlightsYet,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -145,7 +154,7 @@ private fun EmptyHighlightsState() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Exceptional strokes (score 8+) are automatically saved as highlights. You can also manually save highlights during training.",
+            text = strings.noHighlightsMessage,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -156,7 +165,7 @@ private fun EmptyHighlightsState() {
         OutlinedButton(onClick = { /* Navigate to training */ }) {
             Icon(Icons.Default.FitnessCenter, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Start Training")
+            Text(strings.startTraining)
         }
     }
 }
@@ -194,6 +203,7 @@ private fun HighlightCard(
     onDelete: () -> Unit,
     onShare: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     var showMenu by remember { mutableStateOf(false) }
 
     Card(
@@ -252,7 +262,7 @@ private fun HighlightCard(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = "AUTO",
+                                text = strings.autoLabel,
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
@@ -307,7 +317,7 @@ private fun HighlightCard(
             // Menu button
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                    Icon(Icons.Default.MoreVert, contentDescription = strings.moreOptions)
                 }
 
                 DropdownMenu(
@@ -315,7 +325,7 @@ private fun HighlightCard(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Share") },
+                        text = { Text(strings.shareLabel) },
                         onClick = {
                             onShare()
                             showMenu = false
@@ -323,7 +333,7 @@ private fun HighlightCard(
                         leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete") },
+                        text = { Text(strings.deleteLabel) },
                         onClick = {
                             onDelete()
                             showMenu = false
@@ -349,6 +359,7 @@ private fun HighlightDetailSheet(
     onShare: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -374,7 +385,7 @@ private fun HighlightDetailSheet(
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
-                        text = "AUTO-SAVED",
+                        text = strings.autoSavedLabel,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -406,7 +417,7 @@ private fun HighlightDetailSheet(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Motion Visualization",
+                        text = strings.motionVisualization,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -423,16 +434,16 @@ private fun HighlightDetailSheet(
         ) {
             StatItem(
                 value = highlight.score.toString(),
-                label = "Score",
+                label = strings.score,
                 valueColor = getScoreColor(highlight.score)
             )
             StatItem(
                 value = String.format("%.0f%%", highlight.confidence * 100),
-                label = "Confidence"
+                label = strings.confidence
             )
             StatItem(
                 value = highlight.heartRate?.toString() ?: "-",
-                label = "BPM"
+                label = strings.bpm
             )
         }
 
@@ -479,7 +490,7 @@ private fun HighlightDetailSheet(
             ) {
                 Icon(Icons.Default.Delete, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Delete")
+                Text(strings.deleteLabel)
             }
 
             Button(
@@ -488,7 +499,7 @@ private fun HighlightDetailSheet(
             ) {
                 Icon(Icons.Default.Share, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Share")
+                Text(strings.shareLabel)
             }
         }
 
@@ -498,19 +509,19 @@ private fun HighlightDetailSheet(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Highlight?") },
-            text = { Text("This will permanently delete this highlight.") },
+            title = { Text(strings.deleteHighlightTitle) },
+            text = { Text(strings.deleteHighlightMessage) },
             confirmButton = {
                 TextButton(onClick = {
                     onDelete()
                     showDeleteDialog = false
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(strings.delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(strings.cancel)
                 }
             }
         )

@@ -12,15 +12,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import smartracket.com.ui.i18n.LocalAppStrings
+import smartracket.com.ui.i18n.Strings
 import smartracket.com.ui.screens.*
 import smartracket.com.ui.theme.SmartRacketTheme
+import smartracket.com.viewmodel.SettingsViewModel
 
 /**
  * Main entry point for SmartRacket Coach app.
@@ -56,111 +62,150 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 
 /**
  * Main app composable with navigation setup.
+ *
+ * Provides [LocalAppStrings] at the composition root so all child composables
+ * can access localized strings via `LocalAppStrings.current`.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SmartRacketApp() {
-    val navController = rememberNavController()
+fun SmartRacketApp(
+    settingsViewModel: SettingsViewModel = hiltViewModel()
+) {
+    val language by settingsViewModel.language.collectAsState()
+    val strings = Strings.forLanguage(language)
 
-    val bottomNavItems = listOf(
-        Screen.Home,
-        Screen.Training,
-        Screen.Analytics,
-        Screen.Highlights,
-        Screen.Settings
-    )
+    CompositionLocalProvider(LocalAppStrings provides strings) {
+        val navController = rememberNavController()
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
+        val bottomNavItems = listOf(
+            Screen.Home,
+            Screen.Training,
+            Screen.Analytics,
+            Screen.Highlights,
+            Screen.Settings
+        )
 
-                bottomNavItems.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                        label = { Text(screen.title) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                // Pop up to the start destination of the graph to
-                                // avoid building up a large stack of destinations
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            bottomBar = {
+                NavigationBar {
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentDestination = navBackStackEntry?.destination
+                    val currentStrings = LocalAppStrings.current
+
+                    bottomNavItems.forEach { screen ->
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    screen.icon,
+                                    contentDescription = when (screen) {
+                                        Screen.Home -> currentStrings.home
+                                        Screen.Training -> currentStrings.training
+                                        Screen.Analytics -> currentStrings.analytics
+                                        Screen.Highlights -> currentStrings.highlights
+                                        Screen.Settings -> currentStrings.settings
+                                    }
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = when (screen) {
+                                        Screen.Home -> currentStrings.home
+                                        Screen.Training -> currentStrings.training
+                                        Screen.Analytics -> currentStrings.analytics
+                                        Screen.Highlights -> currentStrings.highlights
+                                        Screen.Settings -> currentStrings.settings
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                if (screen == Screen.Home) {
+                                    // Home always clears the entire back stack
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(0) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
-                                // Avoid multiple copies of the same destination
+                            }
+                        )
+                    }
+                }
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Home.route,
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable(Screen.Home.route) {
+                    HomeScreen(
+                        onStartTraining = {
+                            navController.navigate(Screen.Training.route)
+                        },
+                        onViewAnalytics = {
+                            navController.navigate(Screen.Analytics.route)
+                        },
+                        onViewHighlights = {
+                            navController.navigate(Screen.Highlights.route)
+                        }
+                    )
+                }
+
+                composable(Screen.Training.route) {
+                    TrainingScreen(
+                        onNavigateBack = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = false }
                                 launchSingleTop = true
-                                // Restore state when reselecting a previously selected item
-                                restoreState = true
                             }
                         }
                     )
                 }
-            }
-        }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable(Screen.Home.route) {
-                HomeScreen(
-                    onStartTraining = {
-                        navController.navigate(Screen.Training.route)
-                    },
-                    onViewAnalytics = {
-                        navController.navigate(Screen.Analytics.route)
-                    },
-                    onViewHighlights = {
-                        navController.navigate(Screen.Highlights.route)
-                    }
-                )
-            }
 
-            composable(Screen.Training.route) {
-                TrainingScreen(
-                    onNavigateBack = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = false }
-                            launchSingleTop = true
+                composable(Screen.Analytics.route) {
+                    AnalyticsScreen(
+                        onNavigateBack = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
                         }
-                    }
-                )
-            }
+                    )
+                }
 
-            composable(Screen.Analytics.route) {
-                AnalyticsScreen(
-                    onNavigateBack = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = false }
-                            launchSingleTop = true
+                composable(Screen.Highlights.route) {
+                    HighlightsScreen(
+                        onNavigateBack = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
                         }
-                    }
-                )
-            }
+                    )
+                }
 
-            composable(Screen.Highlights.route) {
-                HighlightsScreen(
-                    onNavigateBack = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = false }
-                            launchSingleTop = true
+                composable(Screen.Settings.route) {
+                    SettingsScreen(
+                        onNavigateBack = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
                         }
-                    }
-                )
-            }
-
-            composable(Screen.Settings.route) {
-                SettingsScreen(
-                    onNavigateBack = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                )
+                    )
+                }
             }
         }
     }

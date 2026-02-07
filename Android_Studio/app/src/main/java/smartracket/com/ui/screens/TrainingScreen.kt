@@ -156,6 +156,7 @@ fun TrainingScreen(
                     SessionState.ACTIVE, SessionState.PAUSED -> {
                         ActiveTrainingContent(
                             isPaused = sessionState == SessionState.PAUSED,
+                            isConnected = connectionState is BluetoothConnectionState.Connected,
                             elapsedTime = elapsedTime,
                             currentScore = currentScore,
                             currentFeedback = currentFeedback,
@@ -230,7 +231,8 @@ private fun ConnectionPromptCard(
             Text(
                 text = "Connect Your SmartRacket",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -250,7 +252,9 @@ private fun ConnectionPromptCard(
                 connectionState is BluetoothConnectionState.Scanning -> {
                     Text(
                         text = "Scanning for devices...",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     CircularProgressIndicator()
@@ -445,6 +449,7 @@ private fun IdleStateContent(
 @Composable
 private fun ActiveTrainingContent(
     isPaused: Boolean,
+    isConnected: Boolean,
     elapsedTime: Long,
     currentScore: Int,
     currentFeedback: String,
@@ -567,10 +572,10 @@ private fun ActiveTrainingContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Highlight save button
+        // Highlight save button (only enabled when BLE connected)
         HighlightSaveButton(
             state = highlightSaveState,
-            enabled = lastStroke != null && !isPaused,
+            enabled = lastStroke != null && !isPaused && isConnected,
             onClick = onSaveHighlight
         )
 

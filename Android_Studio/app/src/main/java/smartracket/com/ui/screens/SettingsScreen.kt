@@ -20,6 +20,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import smartracket.com.model.BluetoothConnectionState
+import smartracket.com.model.Language
+import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.viewmodel.SettingsViewModel
 
 /**
@@ -29,7 +31,6 @@ import smartracket.com.viewmodel.SettingsViewModel
  * - Bluetooth device pairing
  * - User profile settings
  * - Health sync toggle
- * - Auto-save highlight threshold
  * - App preferences
  * - Language toggle (English/Chinese)
  */
@@ -46,7 +47,8 @@ fun SettingsScreen(
     val autoSaveThreshold by viewModel.autoSaveThreshold.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsState()
-    val isChineseLanguage by viewModel.isChineseLanguage.collectAsState()
+    val language by viewModel.language.collectAsState()
+    val strings = LocalAppStrings.current
 
     // Bluetooth permissions
     val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -68,7 +70,7 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize()
     ) {
         TopAppBar(
-            title = { Text(if (isChineseLanguage) "设置" else "Settings") }
+            title = { Text(strings.settingsTitle) }
         )
 
         Column(
@@ -79,7 +81,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Bluetooth Section
-            SettingsSection(title = "Bluetooth") {
+            SettingsSection(title = strings.bluetooth) {
                 // Connection status
                 val currentState = connectionState
                 SettingsItem(
@@ -89,14 +91,14 @@ fun SettingsScreen(
                         BluetoothConnectionState.Scanning -> Icons.Default.BluetoothSearching
                         else -> Icons.Default.BluetoothDisabled
                     },
-                    title = "Paddle Connection",
+                    title = strings.paddleConnection,
                     subtitle = when (currentState) {
                         is BluetoothConnectionState.Connected ->
-                            "Connected to ${currentState.device.deviceName}"
-                        is BluetoothConnectionState.Connecting -> "Connecting to ${currentState.deviceName}..."
-                        BluetoothConnectionState.Scanning -> "Scanning..."
+                            "${strings.connectedTo} ${currentState.device.deviceName}"
+                        is BluetoothConnectionState.Connecting -> "${strings.connectingTo} ${currentState.deviceName}..."
+                        BluetoothConnectionState.Scanning -> strings.scanning
                         is BluetoothConnectionState.Error -> currentState.message
-                        else -> "Not connected"
+                        else -> strings.notConnectedLabel
                     },
                     iconTint = when (currentState) {
                         is BluetoothConnectionState.Connected -> Color(0xFF4CAF50)
@@ -108,17 +110,17 @@ fun SettingsScreen(
                 ) {
                     if (currentState is BluetoothConnectionState.Connected) {
                         TextButton(onClick = { viewModel.disconnectDevice() }) {
-                            Text("Disconnect")
+                            Text(strings.disconnect)
                         }
                     } else if (currentState !is BluetoothConnectionState.Connecting &&
                                currentState !is BluetoothConnectionState.Scanning) {
                         if (permissionState.allPermissionsGranted) {
                             TextButton(onClick = { viewModel.startScan() }) {
-                                Text("Scan")
+                                Text(strings.scan)
                             }
                         } else {
                             TextButton(onClick = { permissionState.launchMultiplePermissionRequest() }) {
-                                Text("Grant Permission")
+                                Text(strings.grantPermission)
                             }
                         }
                     }
@@ -133,7 +135,7 @@ fun SettingsScreen(
                             subtitle = "Last connected: ${device.lastConnectedFormatted}"
                         ) {
                             TextButton(onClick = { viewModel.connectToDevice(device.address) }) {
-                                Text("Connect")
+                                Text(strings.connect)
                             }
                         }
                     }
@@ -141,44 +143,33 @@ fun SettingsScreen(
             }
 
             // Health Connect Section
-            SettingsSection(title = "Health & Fitness") {
+            SettingsSection(title = strings.healthFitness) {
                 SettingsItem(
                     icon = Icons.Default.Favorite,
-                    title = "Health Connect",
+                    title = strings.healthConnect,
                     subtitle = when {
-                        !isHealthConnectAvailable -> "Not available on this device"
-                        hasHealthPermissions -> "Connected - syncing heart rate data"
-                        else -> "Tap to connect"
+                        !isHealthConnectAvailable -> strings.notAvailable
+                        hasHealthPermissions -> strings.connectedSyncing
+                        else -> strings.tapToConnect
                     },
                     iconTint = if (hasHealthPermissions) Color(0xFFE91E63)
                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 ) {
                     if (isHealthConnectAvailable && !hasHealthPermissions) {
                         TextButton(onClick = { viewModel.requestHealthPermissions() }) {
-                            Text("Connect")
+                            Text(strings.connect)
                         }
                     }
                 }
             }
 
             // Training Settings
-            SettingsSection(title = "Training") {
-                // Auto-save threshold
-                SettingsSliderItem(
-                    icon = Icons.Default.Stars,
-                    title = "Auto-save Highlight Threshold",
-                    subtitle = "Score $autoSaveThreshold and above",
-                    value = autoSaveThreshold.toFloat(),
-                    valueRange = 5f..10f,
-                    steps = 4,
-                    onValueChange = { viewModel.setAutoSaveThreshold(it.toInt()) }
-                )
-
+            SettingsSection(title = strings.trainingSection) {
                 // Keep screen on
                 SettingsSwitchItem(
                     icon = Icons.Default.ScreenLockPortrait,
-                    title = "Keep Screen On",
-                    subtitle = "Prevent screen from turning off during training",
+                    title = strings.keepScreenOn,
+                    subtitle = strings.keepScreenOnSubtitle,
                     checked = keepScreenOn,
                     onCheckedChange = { viewModel.setKeepScreenOn(it) }
                 )
@@ -186,60 +177,57 @@ fun SettingsScreen(
                 // Vibration
                 SettingsSwitchItem(
                     icon = Icons.Default.Vibration,
-                    title = if (isChineseLanguage) "振动反馈" else "Vibration Feedback",
-                    subtitle = if (isChineseLanguage) "击球检测时振动" else "Vibrate on stroke detection",
+                    title = strings.vibrationFeedback,
+                    subtitle = strings.vibrationSubtitle,
                     checked = vibrationEnabled,
                     onCheckedChange = { viewModel.setVibrationEnabled(it) }
                 )
             }
 
             // Language Settings
-            SettingsSection(title = if (isChineseLanguage) "语言" else "Language") {
-                SettingsSwitchItem(
-                    icon = Icons.Default.Language,
-                    title = if (isChineseLanguage) "中文模式" else "Chinese Mode",
-                    subtitle = if (isChineseLanguage) "切换到英文 / Switch to English" else "切换到中文 / Switch to Chinese",
-                    checked = isChineseLanguage,
-                    onCheckedChange = { viewModel.setChineseLanguage(it) }
+            SettingsSection(title = strings.languageLabel) {
+                LanguageSelectorItem(
+                    currentLanguage = language,
+                    onLanguageSelected = { viewModel.setLanguage(it) }
                 )
             }
 
             // App Info
-            SettingsSection(title = if (isChineseLanguage) "关于" else "About") {
+            SettingsSection(title = strings.about) {
                 SettingsItem(
                     icon = Icons.Default.Info,
-                    title = "SmartRacket Coach",
-                    subtitle = if (isChineseLanguage) "版本 1.0.0" else "Version 1.0.0"
+                    title = strings.appName,
+                    subtitle = "${strings.version} 1.0.0"
                 )
 
                 SettingsItem(
                     icon = Icons.Default.Policy,
-                    title = if (isChineseLanguage) "隐私政策" else "Privacy Policy",
-                    subtitle = if (isChineseLanguage) "查看隐私政策" else "View our privacy policy",
+                    title = strings.privacyPolicy,
+                    subtitle = strings.viewPrivacy,
                     onClick = { viewModel.openPrivacyPolicy() }
                 )
 
                 SettingsItem(
                     icon = Icons.Default.Description,
-                    title = if (isChineseLanguage) "服务条款" else "Terms of Service",
-                    subtitle = if (isChineseLanguage) "查看服务条款" else "View terms and conditions",
+                    title = strings.termsOfService,
+                    subtitle = strings.viewTerms,
                     onClick = { viewModel.openTerms() }
                 )
 
                 SettingsItem(
                     icon = Icons.Default.Feedback,
-                    title = if (isChineseLanguage) "发送反馈" else "Send Feedback",
-                    subtitle = if (isChineseLanguage) "帮助我们改进应用" else "Help us improve the app",
+                    title = strings.sendFeedback,
+                    subtitle = strings.helpImprove,
                     onClick = { viewModel.sendFeedback() }
                 )
             }
 
             // Data Management
-            SettingsSection(title = if (isChineseLanguage) "数据" else "Data") {
+            SettingsSection(title = strings.dataSection) {
                 SettingsItem(
                     icon = Icons.Default.DeleteForever,
-                    title = if (isChineseLanguage) "清除所有数据" else "Clear All Data",
-                    subtitle = if (isChineseLanguage) "删除所有训练记录和精彩片段" else "Delete all training sessions and highlights",
+                    title = strings.clearAllData,
+                    subtitle = strings.clearAllDataSubtitle,
                     iconTint = MaterialTheme.colorScheme.error,
                     onClick = { viewModel.showClearDataDialog() }
                 )
@@ -255,20 +243,20 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissClearDataDialog() },
             icon = { Icon(Icons.Default.Warning, contentDescription = null) },
-            title = { Text("Clear All Data?") },
+            title = { Text(strings.clearAllDataTitle) },
             text = {
-                Text("This will permanently delete all training sessions, strokes, and highlights. This action cannot be undone.")
+                Text(strings.clearAllDataMessage)
             },
             confirmButton = {
                 TextButton(
                     onClick = { viewModel.clearAllData() }
                 ) {
-                    Text("Clear All", color = MaterialTheme.colorScheme.error)
+                    Text(strings.clearAll, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissClearDataDialog() }) {
-                    Text("Cancel")
+                    Text(strings.cancel)
                 }
             }
         )
@@ -417,4 +405,88 @@ private fun SettingsSliderItem(
     }
 }
 
+@Composable
+private fun LanguageSelectorItem(
+    currentLanguage: Language,
+    onLanguageSelected: (Language) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
 
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Language,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        val strings = LocalAppStrings.current
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = strings.languageLabel,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = currentLanguage.nativeName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ArrowDropDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            Language.entries.forEach { lang ->
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = lang.nativeName,
+                                fontWeight = if (lang == currentLanguage) FontWeight.Bold else FontWeight.Normal
+                            )
+                            if (lang != Language.ENGLISH) {
+                                Text(
+                                    text = "(${lang.displayName})",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        onLanguageSelected(lang)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        if (lang == currentLanguage) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                )
+            }
+        }
+    }
+}

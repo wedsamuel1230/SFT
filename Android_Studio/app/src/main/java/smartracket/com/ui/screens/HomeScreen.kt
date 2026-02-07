@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import smartracket.com.model.BluetoothConnectionState
+import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.viewmodel.HomeViewModel
 
 /**
@@ -44,6 +45,7 @@ fun HomeScreen(
     val currentHeartRate by viewModel.currentHeartRate.collectAsState()
     val allTimeStats by viewModel.allTimeStats.collectAsState()
     val recentSessions by viewModel.recentSessions.collectAsState()
+    val strings = LocalAppStrings.current
 
     Column(
         modifier = Modifier
@@ -54,7 +56,7 @@ fun HomeScreen(
     ) {
         // Welcome header
         Text(
-            text = "SmartRacket Coach",
+            text = strings.appName,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -81,14 +83,14 @@ fun HomeScreen(
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.FitnessCenter,
-                label = "Start Training",
+                label = strings.startTraining,
                 onClick = onStartTraining,
                 isPrimary = true
             )
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Analytics,
-                label = "Analytics",
+                label = strings.analyticsLabel,
                 onClick = onViewAnalytics
             )
         }
@@ -100,13 +102,13 @@ fun HomeScreen(
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Stars,
-                label = "Highlights",
+                label = strings.highlightsLabel,
                 onClick = onViewHighlights
             )
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.History,
-                label = "History",
+                label = strings.history,
                 onClick = onViewAnalytics
             )
         }
@@ -117,7 +119,7 @@ fun HomeScreen(
         // Recent sessions
         if (recentSessions.isNotEmpty()) {
             Text(
-                text = "Recent Sessions",
+                text = strings.recentSessions,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -134,26 +136,27 @@ private fun ConnectionStatusCard(
     connectionState: BluetoothConnectionState,
     onConnectClick: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     val (statusColor, statusIcon, statusText) = when (connectionState) {
         is BluetoothConnectionState.Connected -> Triple(
             Color(0xFF4CAF50),
             Icons.Default.BluetoothConnected,
-            "Connected to ${connectionState.device.deviceName}"
+            "${strings.connectedTo} ${connectionState.device.deviceName}"
         )
         is BluetoothConnectionState.Connecting -> Triple(
             Color(0xFFFF9800),
             Icons.Default.BluetoothSearching,
-            "Connecting to ${connectionState.deviceName}..."
+            "${strings.connectingTo} ${connectionState.deviceName}..."
         )
         BluetoothConnectionState.Scanning -> Triple(
             Color(0xFF2196F3),
             Icons.Default.BluetoothSearching,
-            "Scanning for devices..."
+            strings.scanningForDevices
         )
         BluetoothConnectionState.Disconnected -> Triple(
             Color(0xFF9E9E9E),
             Icons.Default.BluetoothDisabled,
-            "Not connected"
+            strings.notConnected
         )
         is BluetoothConnectionState.Error -> Triple(
             Color(0xFFF44336),
@@ -185,7 +188,7 @@ private fun ConnectionStatusCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Paddle Status",
+                    text = strings.paddleStatus,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -199,7 +202,7 @@ private fun ConnectionStatusCard(
             if (connectionState is BluetoothConnectionState.Disconnected ||
                 connectionState is BluetoothConnectionState.Error) {
                 FilledTonalButton(onClick = onConnectClick) {
-                    Text("Connect")
+                    Text(strings.connect)
                 }
             }
         }
@@ -213,6 +216,7 @@ private fun TodaySummaryCard(
     sessionsCount: Int,
     currentHeartRate: Int?
 ) {
+    val strings = LocalAppStrings.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -223,7 +227,7 @@ private fun TodaySummaryCard(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Today's Summary",
+                text = strings.todaySummary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -237,22 +241,22 @@ private fun TodaySummaryCard(
             ) {
                 StatItem(
                     value = totalStrokes.toString(),
-                    label = "Strokes",
+                    label = strings.strokes,
                     icon = Icons.Default.SportsTennis
                 )
                 StatItem(
                     value = if (avgScore > 0) String.format("%.1f", avgScore) else "-",
-                    label = "Avg Score",
+                    label = strings.avgScore,
                     icon = Icons.Default.Star
                 )
                 StatItem(
                     value = sessionsCount.toString(),
-                    label = "Sessions",
+                    label = strings.sessions,
                     icon = Icons.Default.Timer
                 )
                 StatItem(
                     value = currentHeartRate?.toString() ?: "-",
-                    label = "BPM",
+                    label = strings.bpm,
                     icon = Icons.Default.Favorite,
                     iconColor = Color(0xFFE91E63)
                 )
@@ -324,6 +328,7 @@ private fun QuickActionButton(
 
 @Composable
 private fun AllTimeStatsCard(stats: AllTimeStatsUi) {
+    val strings = LocalAppStrings.current
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -331,7 +336,7 @@ private fun AllTimeStatsCard(stats: AllTimeStatsUi) {
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "All-Time Statistics",
+                text = strings.allTimeStatistics,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -349,7 +354,7 @@ private fun AllTimeStatsCard(stats: AllTimeStatsUi) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Total Sessions",
+                        text = strings.totalSessions,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
@@ -361,7 +366,7 @@ private fun AllTimeStatsCard(stats: AllTimeStatsUi) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Total Strokes",
+                        text = strings.totalStrokes,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
@@ -381,7 +386,7 @@ private fun AllTimeStatsCard(stats: AllTimeStatsUi) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Avg Score",
+                        text = strings.avgScore,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
@@ -393,7 +398,7 @@ private fun AllTimeStatsCard(stats: AllTimeStatsUi) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Training Time",
+                        text = strings.trainingTime,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
