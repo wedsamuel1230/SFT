@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.ui.i18n.LocalAppStrings
+import smartracket.com.ui.theme.SmartRacketColors
+import smartracket.com.ui.theme.scoreColor
 import smartracket.com.viewmodel.HomeViewModel
 
 /**
@@ -139,27 +141,27 @@ private fun ConnectionStatusCard(
     val strings = LocalAppStrings.current
     val (statusColor, statusIcon, statusText) = when (connectionState) {
         is BluetoothConnectionState.Connected -> Triple(
-            Color(0xFF4CAF50),
+            SmartRacketColors.StatusConnected,
             Icons.Default.BluetoothConnected,
             "${strings.connectedTo} ${connectionState.device.deviceName}"
         )
         is BluetoothConnectionState.Connecting -> Triple(
-            Color(0xFFFF9800),
+            SmartRacketColors.ScoreAverage,
             Icons.Default.BluetoothSearching,
             "${strings.connectingTo} ${connectionState.deviceName}..."
         )
         BluetoothConnectionState.Scanning -> Triple(
-            Color(0xFF2196F3),
+            SmartRacketColors.StatusConnecting,
             Icons.Default.BluetoothSearching,
             strings.scanningForDevices
         )
         BluetoothConnectionState.Disconnected -> Triple(
-            Color(0xFF9E9E9E),
+            SmartRacketColors.StatusDisconnected,
             Icons.Default.BluetoothDisabled,
             strings.notConnected
         )
         is BluetoothConnectionState.Error -> Triple(
-            Color(0xFFF44336),
+            SmartRacketColors.StatusError,
             Icons.Default.Error,
             connectionState.message
         )
@@ -258,7 +260,7 @@ private fun TodaySummaryCard(
                     value = currentHeartRate?.toString() ?: "-",
                     label = strings.bpm,
                     icon = Icons.Default.Favorite,
-                    iconColor = Color(0xFFE91E63)
+                    iconColor = SmartRacketColors.HeartRatePink
                 )
             }
         }
@@ -307,7 +309,7 @@ private fun QuickActionButton(
         Button(
             onClick = onClick,
             modifier = modifier.height(56.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(icon, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
@@ -317,7 +319,7 @@ private fun QuickActionButton(
         OutlinedButton(
             onClick = onClick,
             modifier = modifier.height(56.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = MaterialTheme.shapes.medium
         ) {
             Icon(icon, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
@@ -410,6 +412,7 @@ private fun AllTimeStatsCard(stats: AllTimeStatsUi) {
 
 @Composable
 private fun RecentSessionCard(session: RecentSessionUi) {
+    val strings = LocalAppStrings.current
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -424,14 +427,14 @@ private fun RecentSessionCard(session: RecentSessionUi) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(getScoreColor(session.avgScore).copy(alpha = 0.2f)),
+                    .background(scoreColor(session.avgScore).copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = String.format("%.1f", session.avgScore),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = getScoreColor(session.avgScore)
+                    color = scoreColor(session.avgScore)
                 )
             }
 
@@ -452,21 +455,14 @@ private fun RecentSessionCard(session: RecentSessionUi) {
 
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "View details",
+                contentDescription = strings.viewDetails,
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
     }
 }
 
-private fun getScoreColor(score: Float): Color {
-    return when {
-        score >= 8 -> Color(0xFF4CAF50)
-        score >= 6 -> Color(0xFF8BC34A)
-        score >= 4 -> Color(0xFFFF9800)
-        else -> Color(0xFFF44336)
-    }
-}
+private fun getScoreColor(score: Float): Color = scoreColor(score)
 
 private fun formatDuration(ms: Long): String {
     val hours = ms / (1000 * 60 * 60)

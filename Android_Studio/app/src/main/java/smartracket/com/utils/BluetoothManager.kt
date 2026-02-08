@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import smartracket.com.model.BleDeviceProfile
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.model.DevicePairing
 import smartracket.com.model.DiscoveredDevice
@@ -32,9 +33,8 @@ import javax.inject.Singleton
  * - Error handling and state management
  *
  * ESP32 Communication Protocol:
- * - Service UUID: 4fafc201-1fb5-459e-8fcc-c5c9c331914b
- * - IMU Characteristic: beb5483e-36e1-4688-b7f5-ea07361b26a8 (Notify)
- * - Control Characteristic: beb5483e-36e1-4688-b7f5-ea07361b26a9 (Write)
+ * UUIDs are provided by [BleDeviceProfile] at runtime so the
+ * app can support different hardware revisions or third-party paddles.
  */
 @Singleton
 class BluetoothManager @Inject constructor(
@@ -43,23 +43,28 @@ class BluetoothManager @Inject constructor(
     companion object {
         private const val TAG = "BluetoothManager"
 
-        // ESP32 SmartRacket BLE Service and Characteristic UUIDs
-        val SERVICE_UUID: UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
-        val IMU_CHARACTERISTIC_UUID: UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
-        val CONTROL_CHARACTERISTIC_UUID: UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a9")
-        val BATTERY_CHARACTERISTIC_UUID: UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26aa")
-
-        // Client Characteristic Configuration Descriptor (for enabling notifications)
-        val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-
         // Scanning constants
         private const val SCAN_TIMEOUT_MS = 15000L
         private const val RECONNECT_DELAY_MS = 2000L
         private const val MAX_RECONNECT_ATTEMPTS = 5
 
-        // Device name prefix for SmartRacket paddles
-        private const val DEVICE_NAME_PREFIX = "SmartRacket"
+        private const val DESIRED_MTU = 517
     }
+
+    /**
+     * Active BLE device profile.
+     * Defaults to the original ESP32 SmartRacket UUIDs.
+     * Call [setDeviceProfile] before scanning to switch hardware variants.
+     */
+    private var profile: BleDeviceProfile = BleDeviceProfile.DEFAULT
+
+    /** Replace the active BLE profile (e.g. when the user picks a different paddle model). */
+    fun setDeviceProfile(newProfile: BleDeviceProfile) {
+        profile = newProfile
+    }
+
+    /** Returns the currently active profile for external inspection. */
+    fun getDeviceProfile(): BleDeviceProfile = profile
 
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
         val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
@@ -70,6 +75,9 @@ class BluetoothManager @Inject constructor(
     private var bluetoothGatt: BluetoothGatt? = null
     private var imuCharacteristic: BluetoothGattCharacteristic? = null
     private var controlCharacteristic: BluetoothGattCharacteristic? = null
+
+    private val operationQueue = BleOperationQueue()
+    private val discoveredDeviceCache: MutableMap<String, BluetoothDevice> = mutableMapOf()
 
     private var reconnectAttempts = 0
     private var shouldReconnect = true
@@ -140,7 +148,7 @@ class BluetoothManager @Inject constructor(
 
         val scanFilters = listOf(
             ScanFilter.Builder()
-                .setServiceUuid(ParcelUuid(SERVICE_UUID))
+                .setServiceUuid(ParcelUuid(profile.serviceUuid))
                 .build()
         )
 
@@ -177,6 +185,8 @@ class BluetoothManager @Inject constructor(
             }
             _isScanning.value = false
 
+            bluetoothLeScanner = null
+
             if (_connectionState.value is BluetoothConnectionState.Scanning) {
                 _connectionState.value = BluetoothConnectionState.Disconnected
             }
@@ -188,8 +198,10 @@ class BluetoothManager @Inject constructor(
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device
             val deviceName = device.name ?: "Unknown Device"
-            val isSmartRacket = deviceName.startsWith(DEVICE_NAME_PREFIX) ||
-                               result.scanRecord?.serviceUuids?.any { it.uuid == SERVICE_UUID } == true
+            val isSmartRacket = deviceName.startsWith(profile.deviceNamePrefix) ||
+                               result.scanRecord?.serviceUuids?.any { it.uuid == profile.serviceUuid } == true
+
+            discoveredDeviceCache[device.address] = device
 
             val discoveredDevice = DiscoveredDevice(
                 address = device.address,
@@ -229,7 +241,7 @@ class BluetoothManager @Inject constructor(
 
         stopScan()
 
-        val device = bluetoothAdapter?.getRemoteDevice(address)
+        val device = discoveredDeviceCache[address] ?: bluetoothAdapter?.getRemoteDevice(address)
         if (device == null) {
             _connectionState.value = BluetoothConnectionState.Error("Device not found", 5)
             return
@@ -248,6 +260,7 @@ class BluetoothManager @Inject constructor(
     @SuppressLint("MissingPermission")
     fun disconnect() {
         shouldReconnect = false
+        operationQueue.clear()
         bluetoothGatt?.let { gatt ->
             gatt.disconnect()
             gatt.close()
@@ -263,55 +276,54 @@ class BluetoothManager @Inject constructor(
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e(TAG, "GATT error on connection change: status=$status, state=$newState")
+                handleGattDisconnect(gatt, status)
+                return
+            }
+
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     Log.d(TAG, "Connected to GATT server")
                     reconnectAttempts = 0
-                    gatt.discoverServices()
+
+                    handler.post {
+                        enqueueImmediateOperation("connectionPriority") {
+                            gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                        }
+                        enqueueOperation("requestMtu") {
+                            gatt.requestMtu(DESIRED_MTU)
+                        }
+                        enqueueOperation("discoverServices") {
+                            gatt.discoverServices()
+                        }
+                    }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Log.d(TAG, "Disconnected from GATT server (status: $status)")
                     imuCharacteristic = null
                     controlCharacteristic = null
 
-                    if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                        reconnectAttempts++
-                        Log.d(TAG, "Attempting reconnect ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)")
-                        _connectionState.value = BluetoothConnectionState.Connecting("Reconnecting...")
-
-                        handler.postDelayed({
-                            currentDeviceAddress?.let { address ->
-                                gatt.close()
-                                connect(address)
-                            }
-                        }, RECONNECT_DELAY_MS)
-                    } else {
-                        gatt.close()
-                        bluetoothGatt = null
-                        _connectionState.value = if (shouldReconnect) {
-                            BluetoothConnectionState.Error("Connection lost after $MAX_RECONNECT_ATTEMPTS attempts", 6)
-                        } else {
-                            BluetoothConnectionState.Disconnected
-                        }
-                    }
+                    handleGattDisconnect(gatt, status)
                 }
             }
         }
 
         @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            operationQueue.onOperationComplete()
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG, "Services discovered")
 
-                val service = gatt.getService(SERVICE_UUID)
+                val service = gatt.getService(profile.serviceUuid)
                 if (service == null) {
                     Log.e(TAG, "SmartRacket service not found")
                     _connectionState.value = BluetoothConnectionState.Error("SmartRacket service not found", 7)
                     return
                 }
 
-                imuCharacteristic = service.getCharacteristic(IMU_CHARACTERISTIC_UUID)
-                controlCharacteristic = service.getCharacteristic(CONTROL_CHARACTERISTIC_UUID)
+                imuCharacteristic = service.getCharacteristic(profile.imuCharacteristicUuid)
+                controlCharacteristic = service.getCharacteristic(profile.controlCharacteristicUuid)
 
                 if (imuCharacteristic == null) {
                     Log.e(TAG, "IMU characteristic not found")
@@ -339,7 +351,7 @@ class BluetoothManager @Inject constructor(
 
         @Deprecated("Deprecated in API 33")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-            if (characteristic.uuid == IMU_CHARACTERISTIC_UUID) {
+            if (characteristic.uuid == profile.imuCharacteristicUuid) {
                 val data = characteristic.value
                 parseImuData(data)
             }
@@ -350,7 +362,7 @@ class BluetoothManager @Inject constructor(
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray
         ) {
-            if (characteristic.uuid == IMU_CHARACTERISTIC_UUID) {
+            if (characteristic.uuid == profile.imuCharacteristicUuid) {
                 parseImuData(value)
             }
         }
@@ -361,36 +373,64 @@ class BluetoothManager @Inject constructor(
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
-            if (status == BluetoothGatt.GATT_SUCCESS && characteristic.uuid == BATTERY_CHARACTERISTIC_UUID) {
+            operationQueue.onOperationComplete()
+            if (status == BluetoothGatt.GATT_SUCCESS && characteristic.uuid == profile.batteryCharacteristicUuid) {
                 val battery = characteristic.value?.firstOrNull()?.toInt()?.and(0xFF)
                 _batteryLevel.value = battery
             }
         }
 
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            operationQueue.onOperationComplete()
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e(TAG, "Characteristic write failed: $status")
+            }
+        }
+
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+            operationQueue.onOperationComplete()
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG, "Descriptor write successful: ${descriptor.uuid}")
             } else {
                 Log.e(TAG, "Descriptor write failed: $status")
             }
         }
+
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            operationQueue.onOperationComplete()
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(TAG, "MTU updated to $mtu")
+            } else {
+                Log.e(TAG, "MTU request failed: $status")
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")
     private fun enableNotifications(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-        gatt.setCharacteristicNotification(characteristic, true)
+        enqueueOperation("enableNotifications") {
+            gatt.setCharacteristicNotification(characteristic, true)
 
-        val descriptor = characteristic.getDescriptor(CCCD_UUID)
-        if (descriptor != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+            val descriptor = characteristic.getDescriptor(BleDeviceProfile.CCCD_UUID) ?: return@enqueueOperation false
+            val started = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                gatt.writeDescriptor(
+                    descriptor,
+                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                ) == BluetoothStatusCodes.SUCCESS
             } else {
                 @Suppress("DEPRECATION")
                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 @Suppress("DEPRECATION")
                 gatt.writeDescriptor(descriptor)
             }
-            Log.d(TAG, "Enabled notifications for ${characteristic.uuid}")
+            if (started) {
+                Log.d(TAG, "Enabled notifications for ${characteristic.uuid}")
+            }
+            started
         }
     }
 
@@ -412,23 +452,27 @@ class BluetoothManager @Inject constructor(
         val gatt = bluetoothGatt ?: return false
         val characteristic = controlCharacteristic ?: return false
 
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                gatt.writeCharacteristic(
-                    characteristic,
-                    command,
-                    BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                ) == BluetoothStatusCodes.SUCCESS
-            } else {
-                @Suppress("DEPRECATION")
-                characteristic.value = command
-                @Suppress("DEPRECATION")
-                gatt.writeCharacteristic(characteristic)
+        enqueueOperation("sendCommand") {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeCharacteristic(
+                        characteristic,
+                        command,
+                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    ) == BluetoothStatusCodes.SUCCESS
+                } else {
+                    @Suppress("DEPRECATION")
+                    characteristic.value = command
+                    @Suppress("DEPRECATION")
+                    gatt.writeCharacteristic(characteristic)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send command", e)
+                false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send command", e)
-            false
         }
+
+        return true
     }
 
     /**
@@ -437,9 +481,11 @@ class BluetoothManager @Inject constructor(
     @SuppressLint("MissingPermission")
     fun requestBatteryLevel() {
         val gatt = bluetoothGatt ?: return
-        val service = gatt.getService(SERVICE_UUID) ?: return
-        val batteryChar = service.getCharacteristic(BATTERY_CHARACTERISTIC_UUID) ?: return
-        gatt.readCharacteristic(batteryChar)
+        val service = gatt.getService(profile.serviceUuid) ?: return
+        val batteryChar = service.getCharacteristic(profile.batteryCharacteristicUuid) ?: return
+        enqueueOperation("readBattery") {
+            gatt.readCharacteristic(batteryChar)
+        }
     }
 
     /**
@@ -450,6 +496,53 @@ class BluetoothManager @Inject constructor(
         disconnect()
         coroutineScope.cancel()
         handler.removeCallbacksAndMessages(null)
+        discoveredDeviceCache.clear()
+        operationQueue.clear()
+    }
+
+    private fun enqueueOperation(name: String, operation: () -> Boolean) {
+        operationQueue.enqueue(object : BleOperationQueue.BleOperation {
+            override val name: String = name
+            override fun execute(): Boolean = operation()
+        })
+    }
+
+    private fun enqueueImmediateOperation(name: String, operation: () -> Boolean) {
+        operationQueue.enqueue(object : BleOperationQueue.BleOperation {
+            override val name: String = name
+            override fun execute(): Boolean {
+                operation()
+                return false
+            }
+        })
+    }
+
+    private fun handleGattDisconnect(gatt: BluetoothGatt, status: Int) {
+        operationQueue.clear()
+        imuCharacteristic = null
+        controlCharacteristic = null
+
+        if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            reconnectAttempts++
+            Log.d(TAG, "Attempting reconnect ($reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)")
+            _connectionState.value = BluetoothConnectionState.Connecting("Reconnecting...")
+
+            handler.postDelayed({
+                currentDeviceAddress?.let { address ->
+                    gatt.close()
+                    bluetoothGatt = null
+                    connect(address)
+                }
+            }, RECONNECT_DELAY_MS)
+        } else {
+            gatt.close()
+            bluetoothGatt = null
+            _connectionState.value = if (shouldReconnect) {
+                BluetoothConnectionState.Error("Connection lost after $MAX_RECONNECT_ATTEMPTS attempts", status)
+            } else {
+                BluetoothConnectionState.Disconnected
+            }
+        }
     }
 }
 

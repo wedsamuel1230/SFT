@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import smartracket.com.model.ThemeMode
 import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.ui.i18n.Strings
 import smartracket.com.ui.screens.*
@@ -42,9 +44,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            SmartRacketTheme {
-                SmartRacketApp()
-            }
+            SmartRacketApp()
         }
     }
 }
@@ -72,8 +72,16 @@ fun SmartRacketApp(
     settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val language by settingsViewModel.language.collectAsState()
+    val themeMode by settingsViewModel.themeMode.collectAsState()
     val strings = Strings.forLanguage(language)
 
+    val darkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
+    SmartRacketTheme(darkTheme = darkTheme) {
     CompositionLocalProvider(LocalAppStrings provides strings) {
         val navController = rememberNavController()
 
@@ -208,6 +216,7 @@ fun SmartRacketApp(
                 }
             }
         }
+    }
     }
 }
 

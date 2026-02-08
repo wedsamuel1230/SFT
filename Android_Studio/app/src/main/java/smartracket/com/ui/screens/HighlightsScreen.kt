@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import smartracket.com.ui.i18n.LocalAppStrings
+import smartracket.com.ui.theme.SmartRacketColors
+import smartracket.com.ui.theme.scoreColor
 import smartracket.com.viewmodel.HighlightsViewModel
 import smartracket.com.viewmodel.HighlightItemUi
 
@@ -221,21 +223,21 @@ private fun HighlightCard(
                 modifier = Modifier
                     .size(72.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(getScoreColor(highlight.score).copy(alpha = 0.2f)),
+                    .background(scoreColor(highlight.score).copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         imageVector = Icons.Default.SportsTennis,
                         contentDescription = null,
-                        tint = getScoreColor(highlight.score),
+                        tint = scoreColor(highlight.score),
                         modifier = Modifier.size(28.dp)
                     )
                     Text(
                         text = highlight.score.toString(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = getScoreColor(highlight.score)
+                        color = scoreColor(highlight.score)
                     )
                 }
             }
@@ -302,7 +304,7 @@ private fun HighlightCard(
                             imageVector = Icons.Default.Favorite,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
-                            tint = Color(0xFFE91E63)
+                            tint = SmartRacketColors.HeartRatePink
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
@@ -435,7 +437,7 @@ private fun HighlightDetailSheet(
             StatItem(
                 value = highlight.score.toString(),
                 label = strings.score,
-                valueColor = getScoreColor(highlight.score)
+                valueColor = scoreColor(highlight.score)
             )
             StatItem(
                 value = String.format("%.0f%%", highlight.confidence * 100),
@@ -549,12 +551,5 @@ private fun StatItem(
     }
 }
 
-private fun getScoreColor(score: Int): Color {
-    return when {
-        score >= 8 -> Color(0xFF4CAF50)
-        score >= 6 -> Color(0xFF8BC34A)
-        score >= 4 -> Color(0xFFFF9800)
-        else -> Color(0xFFF44336)
-    }
-}
+private fun getScoreColor(score: Int): Color = scoreColor(score)
 

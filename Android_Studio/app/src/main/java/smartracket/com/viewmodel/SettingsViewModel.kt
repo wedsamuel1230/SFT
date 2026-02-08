@@ -16,8 +16,12 @@ import smartracket.com.db.SmartRacketDatabase
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.model.DevicePairing
 import smartracket.com.model.Language
+import smartracket.com.model.ThemeMode
 import smartracket.com.repository.BluetoothRepository
 import smartracket.com.repository.HealthRepository
+import smartracket.com.repository.SyncState
+import smartracket.com.repository.SyncStats
+import smartracket.com.sync.SyncManager
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -40,7 +44,8 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val bluetoothRepository: BluetoothRepository,
     private val healthRepository: HealthRepository,
-    private val database: SmartRacketDatabase
+    private val database: SmartRacketDatabase,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     companion object {
@@ -48,6 +53,8 @@ class SettingsViewModel @Inject constructor(
         private val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         private val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
         private val LANGUAGE_CODE = stringPreferencesKey("language_code")
+        private val THEME_MODE = stringPreferencesKey("theme_mode")
+        private val CLOUD_SYNC_ENABLED = booleanPreferencesKey("cloud_sync_enabled")
     }
 
     private val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
@@ -77,13 +84,31 @@ class SettingsViewModel @Inject constructor(
     private val _language = MutableStateFlow(Language.ENGLISH)
     val language: StateFlow<Language> = _language.asStateFlow()
 
+    // Theme mode settings
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
     // Clear data dialog
     private val _showClearDataDialog = MutableStateFlow(false)
     val showClearDataDialog: StateFlow<Boolean> = _showClearDataDialog.asStateFlow()
 
+    // Remove device dialog
+    private val _deviceToRemove = MutableStateFlow<PairedDeviceUi?>(null)
+    val deviceToRemove: StateFlow<PairedDeviceUi?> = _deviceToRemove.asStateFlow()
+
+    // Cloud Sync state
+    private val _cloudSyncEnabled = MutableStateFlow(false)
+    val cloudSyncEnabled: StateFlow<Boolean> = _cloudSyncEnabled.asStateFlow()
+
+    val syncState: StateFlow<SyncState> = syncManager.syncState
+
+    private val _syncStats = MutableStateFlow(SyncStats(0, 0, 0, false))
+    val syncStats: StateFlow<SyncStats> = _syncStats.asStateFlow()
+
     init {
         loadSettings()
         loadPairedDevices()
+        loadSyncStats()
     }
 
     private fun loadSettings() {
@@ -93,6 +118,8 @@ class SettingsViewModel @Inject constructor(
                 _keepScreenOn.value = preferences[KEEP_SCREEN_ON] ?: true
                 _vibrationEnabled.value = preferences[VIBRATION_ENABLED] ?: true
                 _language.value = Language.fromCode(preferences[LANGUAGE_CODE] ?: "en")
+                _themeMode.value = ThemeMode.fromCode(preferences[THEME_MODE] ?: "system")
+                _cloudSyncEnabled.value = preferences[CLOUD_SYNC_ENABLED] ?: false
             }
         }
     }
@@ -121,6 +148,31 @@ class SettingsViewModel @Inject constructor(
 
     fun disconnectDevice() {
         bluetoothRepository.disconnect()
+    }
+
+    // ============= Device Management =============
+
+    fun setPrimaryDevice(address: String) {
+        viewModelScope.launch {
+            database.devicePairingDao().clearPrimaryDevice()
+            database.devicePairingDao().setPrimaryDevice(address)
+        }
+    }
+
+    fun showRemoveDeviceDialog(device: PairedDeviceUi) {
+        _deviceToRemove.value = device
+    }
+
+    fun dismissRemoveDeviceDialog() {
+        _deviceToRemove.value = null
+    }
+
+    fun confirmRemoveDevice() {
+        val device = _deviceToRemove.value ?: return
+        viewModelScope.launch {
+            database.devicePairingDao().deleteById(device.address)
+            _deviceToRemove.value = null
+        }
     }
 
     // ============= Health Connect =============
@@ -166,6 +218,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            context.dataStore.edit { preferences ->
+                preferences[THEME_MODE] = mode.code
+            }
+        }
+    }
+
     // ============= App Info =============
 
     fun openPrivacyPolicy() {
@@ -193,6 +253,36 @@ class SettingsViewModel @Inject constructor(
         })
     }
 
+    // ============= Cloud Sync =============
+
+    private fun loadSyncStats() {
+        viewModelScope.launch {
+            _syncStats.value = syncManager.getSyncStats()
+        }
+    }
+
+    fun setCloudSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { preferences ->
+                preferences[CLOUD_SYNC_ENABLED] = enabled
+            }
+            if (enabled) {
+                syncManager.enablePeriodicSync()
+            } else {
+                syncManager.disablePeriodicSync()
+            }
+        }
+    }
+
+    fun syncNow() {
+        syncManager.triggerImmediateSync()
+        // Refresh stats after a short delay to reflect changes
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(2000)
+            _syncStats.value = syncManager.getSyncStats()
+        }
+    }
+
     // ============= Data Management =============
 
     fun showClearDataDialog() {
@@ -214,7 +304,8 @@ class SettingsViewModel @Inject constructor(
         return PairedDeviceUi(
             address = bluetoothMacAddress,
             deviceName = deviceName,
-            lastConnectedFormatted = lastConnected?.let { dateFormatter.format(Date(it)) } ?: "Never"
+            lastConnectedFormatted = lastConnected?.let { dateFormatter.format(Date(it)) } ?: "Never",
+            isPrimary = isPrimary
         )
     }
 }
@@ -225,6 +316,7 @@ class SettingsViewModel @Inject constructor(
 data class PairedDeviceUi(
     val address: String,
     val deviceName: String,
-    val lastConnectedFormatted: String
+    val lastConnectedFormatted: String,
+    val isPrimary: Boolean = false
 )
 

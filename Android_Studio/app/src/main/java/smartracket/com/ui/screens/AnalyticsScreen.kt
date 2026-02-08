@@ -26,6 +26,8 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import smartracket.com.ui.i18n.LocalAppStrings
+import smartracket.com.ui.theme.SmartRacketColors
+import smartracket.com.ui.theme.scoreColor
 import smartracket.com.viewmodel.AnalyticsViewModel
 import smartracket.com.viewmodel.SessionDetailUi
 import smartracket.com.viewmodel.StrokeDistributionItem
@@ -65,7 +67,13 @@ fun AnalyticsScreen(
                 Tab(
                     selected = selectedTabIndex == index,
                     onClick = { selectedTabIndex = index },
-                    text = { Text(title) }
+                    text = {
+                        Text(
+                            text = title,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 )
             }
         }
@@ -201,14 +209,14 @@ private fun SessionCard(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(getScoreColor(session.avgScore).copy(alpha = 0.2f)),
+                    .background(scoreColor(session.avgScore).copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = String.format("%.1f", session.avgScore),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = getScoreColor(session.avgScore)
+                    color = scoreColor(session.avgScore)
                 )
             }
 
@@ -230,7 +238,7 @@ private fun SessionCard(
                         Icon(
                             imageVector = Icons.Default.Favorite,
                             contentDescription = null,
-                            tint = Color(0xFFE91E63),
+                            tint = SmartRacketColors.HeartRatePink,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -393,14 +401,7 @@ private fun StrokeDistributionChart(
     data: List<StrokeDistributionItem>,
     modifier: Modifier = Modifier
 ) {
-    val barColors = listOf(
-        android.graphics.Color.parseColor("#4CAF50"),
-        android.graphics.Color.parseColor("#2196F3"),
-        android.graphics.Color.parseColor("#FF9800"),
-        android.graphics.Color.parseColor("#9C27B0"),
-        android.graphics.Color.parseColor("#E91E63"),
-        android.graphics.Color.parseColor("#00BCD4")
-    )
+    val barColors = SmartRacketColors.ChartColors
 
     AndroidView(
         factory = { context ->
@@ -545,7 +546,7 @@ private fun TrendsTab(
                     if (scoreTrend.size >= 2) {
                         val trend = scoreTrend.last().score - scoreTrend.first().score
                         val trendIcon = if (trend >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown
-                        val trendColor = if (trend >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                        val trendColor = if (trend >= 0) SmartRacketColors.ScoreExcellent else SmartRacketColors.ScorePoor
                         val trendText = if (trend >= 0) strings.improving else strings.declining
 
                         Row(
@@ -612,13 +613,13 @@ private fun ScoreTrendChart(
             }
 
             val dataSet = LineDataSet(entries, "Score").apply {
-                color = android.graphics.Color.parseColor("#4CAF50")
+                color = SmartRacketColors.ChartColors[0]
                 lineWidth = 2f
                 setDrawCircles(true)
                 circleRadius = 4f
-                setCircleColor(android.graphics.Color.parseColor("#4CAF50"))
+                setCircleColor(SmartRacketColors.ChartColors[0])
                 setDrawFilled(true)
-                fillColor = android.graphics.Color.parseColor("#4CAF50")
+                fillColor = SmartRacketColors.ChartColors[0]
                 fillAlpha = 50
                 valueTextSize = 10f
                 mode = LineDataSet.Mode.CUBIC_BEZIER
@@ -659,7 +660,7 @@ private fun SessionDetailSheet(
             StatColumn(
                 value = String.format("%.1f", session.avgScore),
                 label = strings.avgScore,
-                valueColor = getScoreColor(session.avgScore)
+                valueColor = scoreColor(session.avgScore)
             )
             StatColumn(value = session.durationFormatted, label = strings.duration)
         }
@@ -759,14 +760,7 @@ private fun EmptyStateMessage(
     }
 }
 
-private fun getScoreColor(score: Float): Color {
-    return when {
-        score >= 8 -> Color(0xFF4CAF50)
-        score >= 6 -> Color(0xFF8BC34A)
-        score >= 4 -> Color(0xFFFF9800)
-        else -> Color(0xFFF44336)
-    }
-}
+private fun getScoreColor(score: Float): Color = scoreColor(score)
 
 // Data classes for trends
 data class ScoreTrendPoint(

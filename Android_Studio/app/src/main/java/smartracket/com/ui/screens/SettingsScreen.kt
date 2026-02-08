@@ -21,7 +21,10 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.model.Language
+import smartracket.com.model.ThemeMode
+import smartracket.com.repository.SyncState
 import smartracket.com.ui.i18n.LocalAppStrings
+import smartracket.com.ui.theme.SmartRacketColors
 import smartracket.com.viewmodel.SettingsViewModel
 
 /**
@@ -44,10 +47,14 @@ fun SettingsScreen(
     val pairedDevices by viewModel.pairedDevices.collectAsState()
     val isHealthConnectAvailable by viewModel.isHealthConnectAvailable.collectAsState()
     val hasHealthPermissions by viewModel.hasHealthPermissions.collectAsState()
-    val autoSaveThreshold by viewModel.autoSaveThreshold.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsState()
     val language by viewModel.language.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
+    val cloudSyncEnabled by viewModel.cloudSyncEnabled.collectAsState()
+    val syncState by viewModel.syncState.collectAsState()
+    val syncStats by viewModel.syncStats.collectAsState()
+    val deviceToRemove by viewModel.deviceToRemove.collectAsState()
     val strings = LocalAppStrings.current
 
     // Bluetooth permissions
@@ -101,10 +108,10 @@ fun SettingsScreen(
                         else -> strings.notConnectedLabel
                     },
                     iconTint = when (currentState) {
-                        is BluetoothConnectionState.Connected -> Color(0xFF4CAF50)
+                        is BluetoothConnectionState.Connected -> SmartRacketColors.StatusConnected
                         is BluetoothConnectionState.Connecting,
-                        BluetoothConnectionState.Scanning -> Color(0xFF2196F3)
-                        is BluetoothConnectionState.Error -> Color(0xFFF44336)
+                        BluetoothConnectionState.Scanning -> SmartRacketColors.StatusConnecting
+                        is BluetoothConnectionState.Error -> SmartRacketColors.StatusError
                         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     }
                 ) {
@@ -125,17 +132,44 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
 
-                // Paired devices
-                if (pairedDevices.isNotEmpty()) {
+            // Paired Devices Section
+            SettingsSection(title = strings.devices) {
+                if (pairedDevices.isEmpty()) {
+                    SettingsItem(
+                        icon = Icons.Default.DevicesOther,
+                        title = strings.noPairedDevices,
+                        subtitle = strings.managePairedDevices
+                    )
+                } else {
                     pairedDevices.forEach { device ->
                         SettingsItem(
                             icon = Icons.Default.SportsTennis,
-                            title = device.deviceName,
-                            subtitle = "Last connected: ${device.lastConnectedFormatted}"
+                            title = device.deviceName + if (device.isPrimary) " ★" else "",
+                            subtitle = "${strings.lastConnected}: ${device.lastConnectedFormatted}"
                         ) {
-                            TextButton(onClick = { viewModel.connectToDevice(device.address) }) {
-                                Text(strings.connect)
+                            Row {
+                                if (!device.isPrimary) {
+                                    TextButton(onClick = { viewModel.setPrimaryDevice(device.address) }) {
+                                        Text(strings.setAsPrimary, style = MaterialTheme.typography.labelSmall)
+                                    }
+                                } else {
+                                    Text(
+                                        text = strings.primaryDevice,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp)
+                                    )
+                                }
+                                IconButton(onClick = { viewModel.showRemoveDeviceDialog(device) }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = strings.removeDevice,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -152,12 +186,61 @@ fun SettingsScreen(
                         hasHealthPermissions -> strings.connectedSyncing
                         else -> strings.tapToConnect
                     },
-                    iconTint = if (hasHealthPermissions) Color(0xFFE91E63)
+                    iconTint = if (hasHealthPermissions) SmartRacketColors.HeartRatePink
                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 ) {
                     if (isHealthConnectAvailable && !hasHealthPermissions) {
                         TextButton(onClick = { viewModel.requestHealthPermissions() }) {
                             Text(strings.connect)
+                        }
+                    }
+                }
+            }
+
+            // Cloud Sync Section
+            SettingsSection(title = strings.cloudSync) {
+                if (!syncStats.isFirebaseConfigured) {
+                    // Firebase not configured — show setup notice
+                    SettingsItem(
+                        icon = Icons.Default.CloudOff,
+                        title = strings.firebaseNotConfigured,
+                        subtitle = strings.firebaseNotConfiguredSubtitle,
+                        iconTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                } else {
+                    // Cloud sync toggle
+                    SettingsSwitchItem(
+                        icon = Icons.Default.Cloud,
+                        title = strings.cloudSync,
+                        subtitle = if (cloudSyncEnabled) strings.cloudSyncEnabled else strings.cloudSyncDisabled,
+                        checked = cloudSyncEnabled,
+                        onCheckedChange = { viewModel.setCloudSyncEnabled(it) }
+                    )
+
+                    // Sync status
+                    val syncStatusText = when (val state = syncState) {
+                        is SyncState.Idle -> "${strings.syncedSessions}: ${syncStats.syncedSessions} · ${strings.pendingSync}: ${syncStats.pendingSessions}"
+                        is SyncState.Syncing -> strings.syncing
+                        is SyncState.Success -> "${strings.syncSuccess} (${state.sessionsSynced})"
+                        is SyncState.Error -> "${strings.syncError}: ${state.message}"
+                        is SyncState.FirebaseUnavailable -> strings.firebaseNotConfigured
+                    }
+
+                    SettingsItem(
+                        icon = Icons.Default.Sync,
+                        title = strings.syncStatus,
+                        subtitle = syncStatusText,
+                        iconTint = when (syncState) {
+                            is SyncState.Syncing -> SmartRacketColors.StatusConnecting
+                            is SyncState.Success -> SmartRacketColors.StatusConnected
+                            is SyncState.Error -> SmartRacketColors.StatusError
+                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        }
+                    ) {
+                        if (cloudSyncEnabled && syncState !is SyncState.Syncing) {
+                            TextButton(onClick = { viewModel.syncNow() }) {
+                                Text(strings.syncNow)
+                            }
                         }
                     }
                 }
@@ -189,6 +272,15 @@ fun SettingsScreen(
                 LanguageSelectorItem(
                     currentLanguage = language,
                     onLanguageSelected = { viewModel.setLanguage(it) }
+                )
+            }
+
+            // Appearance Settings (Theme Mode)
+            SettingsSection(title = strings.appearance) {
+                ThemeModeSelectorItem(
+                    currentMode = themeMode,
+                    strings = strings,
+                    onModeSelected = { viewModel.setThemeMode(it) }
                 )
             }
 
@@ -256,6 +348,28 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissClearDataDialog() }) {
+                    Text(strings.cancel)
+                }
+            }
+        )
+    }
+
+    // Remove device confirmation dialog
+    if (deviceToRemove != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissRemoveDeviceDialog() },
+            icon = { Icon(Icons.Default.BluetoothDisabled, contentDescription = null) },
+            title = { Text(strings.removeDeviceTitle) },
+            text = {
+                Text(strings.removeDeviceMessage)
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmRemoveDevice() }) {
+                    Text(strings.remove, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissRemoveDeviceDialog() }) {
                     Text(strings.cancel)
                 }
             }
@@ -484,6 +598,95 @@ private fun LanguageSelectorItem(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeSelectorItem(
+    currentMode: ThemeMode,
+    strings: smartracket.com.ui.i18n.AppStrings,
+    onModeSelected: (ThemeMode) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = when (currentMode) {
+                ThemeMode.LIGHT -> Icons.Default.LightMode
+                ThemeMode.DARK -> Icons.Default.DarkMode
+                ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+            },
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = strings.themeMode,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = when (currentMode) {
+                    ThemeMode.SYSTEM -> strings.themeSystem
+                    ThemeMode.LIGHT -> strings.themeLight
+                    ThemeMode.DARK -> strings.themeDark
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ArrowDropDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            ThemeMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = when (mode) {
+                                ThemeMode.SYSTEM -> strings.themeSystem
+                                ThemeMode.LIGHT -> strings.themeLight
+                                ThemeMode.DARK -> strings.themeDark
+                            },
+                            fontWeight = if (mode == currentMode) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = {
+                        onModeSelected(mode)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = when (mode) {
+                                ThemeMode.LIGHT -> Icons.Default.LightMode
+                                ThemeMode.DARK -> Icons.Default.DarkMode
+                                ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                            },
+                            contentDescription = null,
+                            tint = if (mode == currentMode) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
                     }
                 )
             }

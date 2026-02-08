@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Night theme for SmartRacket Coach -->
+    <!-- Night theme for SmartRacket Coach – Samsung Blue -->
     <!-- Actual theming is handled by Jetpack Compose (Theme.kt) -->
     <style name="Theme.SmartRacket" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@color/surface_dark</item>
         <item name="android:navigationBarColor">@color/surface_dark</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
     </style>
 </resources>

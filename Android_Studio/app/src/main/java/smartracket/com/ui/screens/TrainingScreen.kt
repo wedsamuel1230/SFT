@@ -28,6 +28,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import smartracket.com.model.*
+import smartracket.com.ui.i18n.LocalAppStrings
+import smartracket.com.ui.theme.SmartRacketColors
+import smartracket.com.ui.theme.scoreColor
 import smartracket.com.viewmodel.HighlightSaveState
 import smartracket.com.viewmodel.TrainingViewModel
 
@@ -61,6 +64,7 @@ fun TrainingScreen(
     val highlightSaveState by viewModel.highlightSaveState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
+    val strings = LocalAppStrings.current
 
     // Bluetooth permissions
     val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -88,10 +92,10 @@ fun TrainingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Training") },
+                title = { Text(strings.trainingTitle) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = strings.back)
                     }
                 },
                 actions = {
@@ -108,7 +112,7 @@ fun TrainingScreen(
                                     level > 20 -> Icons.Default.Battery2Bar
                                     else -> Icons.Default.BatteryAlert
                                 },
-                                contentDescription = "Battery",
+                                contentDescription = strings.battery,
                                 tint = if (level > 20) MaterialTheme.colorScheme.onSurface
                                        else Color.Red
                             )
@@ -151,7 +155,7 @@ fun TrainingScreen(
                     }
                     SessionState.STARTING -> {
                         CircularProgressIndicator()
-                        Text("Starting session...")
+                        Text(strings.startingSession)
                     }
                     SessionState.ACTIVE, SessionState.PAUSED -> {
                         ActiveTrainingContent(
@@ -174,7 +178,7 @@ fun TrainingScreen(
                     }
                     SessionState.STOPPING -> {
                         CircularProgressIndicator()
-                        Text("Saving session...")
+                        Text(strings.savingSession)
                     }
                     SessionState.COMPLETED -> {
                         SessionCompleteContent(
@@ -209,6 +213,7 @@ private fun ConnectionPromptCard(
     discoveredDevices: List<DiscoveredDevice>,
     onConnectDevice: (String) -> Unit
 ) {
+    val strings = LocalAppStrings.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -229,10 +234,11 @@ private fun ConnectionPromptCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Connect Your SmartRacket",
+                text = strings.connectSmartRacket,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -240,18 +246,19 @@ private fun ConnectionPromptCard(
             when {
                 !hasPermissions -> {
                     Text(
-                        text = "Bluetooth permissions are required to connect to your paddle.",
+                        text = strings.btPermissionsRequired,
                         style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = onRequestPermissions) {
-                        Text("Grant Permissions")
+                        Text(strings.grantPermissions)
                     }
                 }
                 connectionState is BluetoothConnectionState.Scanning -> {
                     Text(
-                        text = "Scanning for devices...",
+                        text = strings.scanningForDevices,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
@@ -263,7 +270,7 @@ private fun ConnectionPromptCard(
                     // Show discovered devices
                     if (discoveredDevices.isNotEmpty()) {
                         Text(
-                            text = "Found Devices:",
+                            text = "${strings.foundDevices}:",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -279,12 +286,12 @@ private fun ConnectionPromptCard(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = onStopScan) {
-                        Text("Stop Scanning")
+                        Text(strings.stopScanning)
                     }
                 }
                 connectionState is BluetoothConnectionState.Connecting -> {
                     Text(
-                        text = "Connecting...",
+                        text = strings.connecting,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -298,20 +305,21 @@ private fun ConnectionPromptCard(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = onStartScan) {
-                        Text("Try Again")
+                        Text(strings.tryAgain)
                     }
                 }
                 else -> {
                     Text(
-                        text = "Make sure your SmartRacket paddle is powered on and nearby.",
+                        text = strings.makeSurePaddleOn,
                         style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = onStartScan) {
                         Icon(Icons.Default.BluetoothSearching, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Scan for Devices")
+                        Text(strings.scanForDevices)
                     }
                 }
             }
@@ -324,6 +332,7 @@ private fun DeviceListItem(
     device: DiscoveredDevice,
     onClick: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     Card(
         onClick = onClick,
         modifier = Modifier
@@ -348,7 +357,7 @@ private fun DeviceListItem(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = device.name ?: "Unknown Device",
+                    text = device.name ?: strings.unknownDevice,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
@@ -373,6 +382,7 @@ private fun IdleStateContent(
     connectionState: BluetoothConnectionState,
     onStartSession: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -382,7 +392,7 @@ private fun IdleStateContent(
         if (connectionState is BluetoothConnectionState.Connected) {
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                    containerColor = SmartRacketColors.StatusConnected.copy(alpha = 0.1f)
                 )
             ) {
                 Row(
@@ -392,11 +402,11 @@ private fun IdleStateContent(
                     Icon(
                         imageVector = Icons.Default.BluetoothConnected,
                         contentDescription = null,
-                        tint = Color(0xFF4CAF50)
+                        tint = SmartRacketColors.StatusConnected
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Connected to ${connectionState.device.deviceName}",
+                        text = "${strings.connectedTo} ${connectionState.device.deviceName}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
@@ -416,7 +426,7 @@ private fun IdleStateContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Ready to Train",
+            text = strings.readyToTrain,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -424,7 +434,7 @@ private fun IdleStateContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Your paddle is connected and ready for action!",
+            text = strings.paddleReadyAction,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
@@ -437,11 +447,11 @@ private fun IdleStateContent(
             modifier = Modifier
                 .fillMaxWidth(0.7f)
                 .height(56.dp),
-            shape = RoundedCornerShape(28.dp)
+            shape = MaterialTheme.shapes.extraLarge
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Start Training", fontSize = 18.sp)
+            Text(strings.startTrainingBtn, fontSize = 18.sp)
         }
     }
 }
@@ -464,6 +474,7 @@ private fun ActiveTrainingContent(
     onStop: () -> Unit,
     onSaveHighlight: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -481,7 +492,7 @@ private fun ActiveTrainingContent(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Duration",
+                    text = strings.duration,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -495,7 +506,7 @@ private fun ActiveTrainingContent(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Strokes",
+                    text = strings.strokesLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -509,7 +520,7 @@ private fun ActiveTrainingContent(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Avg Score",
+                    text = strings.avgScoreLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -521,7 +532,7 @@ private fun ActiveTrainingContent(
                     Icon(
                         imageVector = Icons.Default.Favorite,
                         contentDescription = null,
-                        tint = Color(0xFFE91E63),
+                        tint = SmartRacketColors.HeartRatePink,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -532,7 +543,7 @@ private fun ActiveTrainingContent(
                     )
                 }
                 Text(
-                    text = "BPM",
+                    text = strings.bpmLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -589,30 +600,30 @@ private fun ActiveTrainingContent(
                 Button(
                     onClick = onResume,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
+                        containerColor = SmartRacketColors.StatusConnected
                     )
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Resume")
+                    Text(strings.resume)
                 }
             } else {
                 OutlinedButton(onClick = onPause) {
                     Icon(Icons.Default.Pause, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Pause")
+                    Text(strings.pause)
                 }
             }
 
             Button(
                 onClick = onStop,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFF44336)
+                    containerColor = SmartRacketColors.StatusError
                 )
             ) {
                 Icon(Icons.Default.Stop, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Stop")
+                Text(strings.stop)
             }
         }
 
@@ -621,7 +632,7 @@ private fun ActiveTrainingContent(
         // Recent strokes list
         if (recentStrokes.isNotEmpty()) {
             Text(
-                text = "Recent Strokes",
+                text = strings.recentStrokesLabel,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
@@ -682,14 +693,14 @@ private fun AnimatedScoreDisplay(
                 .size(160.dp)
                 .scale(animatedScale.value)
                 .clip(CircleShape)
-                .background(getScoreColor(score).copy(alpha = 0.2f)),
+                .background(scoreColor(score).copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = if (score > 0) score.toString() else "-",
                 style = MaterialTheme.typography.displayLarge,
                 fontWeight = FontWeight.Bold,
-                color = getScoreColor(score)
+                color = scoreColor(score)
             )
         }
     }
@@ -701,17 +712,18 @@ private fun HighlightSaveButton(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     val buttonColor = when (state) {
-        is HighlightSaveState.Saved -> Color(0xFF4CAF50)
-        is HighlightSaveState.Error -> Color(0xFFF44336)
+        is HighlightSaveState.Saved -> SmartRacketColors.StatusConnected
+        is HighlightSaveState.Error -> SmartRacketColors.StatusError
         else -> MaterialTheme.colorScheme.secondary
     }
 
     val buttonText = when (state) {
-        HighlightSaveState.Idle -> "Save Highlight"
-        HighlightSaveState.Saving -> "Saving..."
-        is HighlightSaveState.Saved -> "Saved!"
-        is HighlightSaveState.Error -> "Failed"
+        HighlightSaveState.Idle -> strings.saveHighlight
+        HighlightSaveState.Saving -> strings.saving
+        is HighlightSaveState.Saved -> strings.saved
+        is HighlightSaveState.Error -> strings.failed
     }
 
     val buttonIcon = when (state) {
@@ -751,14 +763,14 @@ private fun RecentStrokeItem(stroke: Stroke) {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(getScoreColor(stroke.score).copy(alpha = 0.2f)),
+                    .background(scoreColor(stroke.score).copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = stroke.score.toString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = getScoreColor(stroke.score)
+                    color = scoreColor(stroke.score)
                 )
             }
 
@@ -795,6 +807,7 @@ private fun SessionCompleteContent(
     duration: Long,
     onDismiss: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -804,13 +817,13 @@ private fun SessionCompleteContent(
             imageVector = Icons.Default.EmojiEvents,
             contentDescription = null,
             modifier = Modifier.size(100.dp),
-            tint = Color(0xFFFFD700)
+            tint = SmartRacketColors.TrophyGold
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Session Complete!",
+            text = strings.sessionComplete,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -836,7 +849,7 @@ private fun SessionCompleteContent(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Strokes",
+                            text = strings.strokesLabel,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -846,10 +859,10 @@ private fun SessionCompleteContent(
                             text = String.format("%.1f", averageScore),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
-                            color = getScoreColor(averageScore.toInt())
+                            color = scoreColor(averageScore.toInt())
                         )
                         Text(
-                            text = "Avg Score",
+                            text = strings.avgScoreLabel,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -861,7 +874,7 @@ private fun SessionCompleteContent(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Duration",
+                            text = strings.duration,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -875,19 +888,12 @@ private fun SessionCompleteContent(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth(0.7f)
         ) {
-            Text("Done")
+            Text(strings.done)
         }
     }
 }
 
-private fun getScoreColor(score: Int): Color {
-    return when {
-        score >= 8 -> Color(0xFF4CAF50)
-        score >= 6 -> Color(0xFF8BC34A)
-        score >= 4 -> Color(0xFFFF9800)
-        else -> Color(0xFFF44336)
-    }
-}
+private fun getScoreColor(score: Int): Color = scoreColor(score)
 
 private fun formatTime(ms: Long): String {
     val seconds = (ms / 1000) % 60

@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import smartracket.com.sync.SyncManager
 import javax.inject.Inject
 
 /**
@@ -17,7 +18,7 @@ import javax.inject.Inject
  * Handles:
  * - Heart rate data from watch
  * - Training control commands from watch
- * - Data sync requests
+ * - Data sync requests (triggers Firebase ↔ Room sync)
  */
 @AndroidEntryPoint
 class WearableListenerService : WearableListenerService() {
@@ -30,6 +31,9 @@ class WearableListenerService : WearableListenerService() {
         const val PATH_TRAINING_STOP = "/smartracket/training/stop"
         const val PATH_SYNC_REQUEST = "/smartracket/sync"
     }
+
+    @Inject
+    lateinit var syncManager: SyncManager
 
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -82,14 +86,20 @@ class WearableListenerService : WearableListenerService() {
         serviceScope.launch {
             Log.d(TAG, "Training stop requested from watch")
             // Stop training session
+            // After stopping, trigger a sync so watch gets updated data
+            syncManager.triggerImmediateSync()
         }
     }
 
     private fun handleSyncRequest() {
         serviceScope.launch {
-            Log.d(TAG, "Sync requested from watch")
-            // Sync current session data to watch
-            // sendSessionDataToWatch()
+            Log.d(TAG, "Sync requested from watch — triggering immediate sync")
+            try {
+                val syncedCount = syncManager.syncNow()
+                Log.d(TAG, "Watch-triggered sync complete: $syncedCount sessions synced")
+            } catch (e: Exception) {
+                Log.e(TAG, "Watch-triggered sync failed", e)
+            }
         }
     }
 }

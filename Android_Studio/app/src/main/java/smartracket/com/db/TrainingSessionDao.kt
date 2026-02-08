@@ -34,6 +34,12 @@ interface TrainingSessionDao {
     @Query("UPDATE training_sessions SET notes = :notes WHERE sessionId = :sessionId")
     suspend fun updateNotes(sessionId: Long, notes: String?)
 
+    @Query("UPDATE training_sessions SET isSynced = 1 WHERE sessionId = :sessionId")
+    suspend fun markAsSynced(sessionId: Long)
+
+    @Query("UPDATE training_sessions SET isSynced = 0 WHERE sessionId = :sessionId")
+    suspend fun markAsUnsynced(sessionId: Long)
+
     // ============= Delete Operations =============
 
     @Delete
@@ -73,6 +79,17 @@ interface TrainingSessionDao {
 
     @Query("SELECT * FROM training_sessions WHERE endTime IS NULL")
     fun getActiveSessionFlow(): Flow<TrainingSession?>
+
+    // ============= Sync Queries =============
+
+    @Query("SELECT * FROM training_sessions WHERE isSynced = 0 AND endTime IS NOT NULL ORDER BY startTime ASC")
+    suspend fun getUnsyncedSessions(): List<TrainingSession>
+
+    @Query("SELECT COUNT(*) FROM training_sessions WHERE isSynced = 0 AND endTime IS NOT NULL")
+    suspend fun getUnsyncedCount(): Int
+
+    @Query("SELECT COUNT(*) FROM training_sessions WHERE isSynced = 1")
+    suspend fun getSyncedCount(): Int
 
     // ============= Aggregation Queries =============
 

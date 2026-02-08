@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -86,6 +87,8 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
 
     // TensorFlow Lite for ML inference
     implementation(libs.tensorflow.lite)
@@ -116,6 +119,11 @@ dependencies {
 
     // Gson for JSON serialization
     implementation(libs.gson)
+
+    // Firebase (cloud sync)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.auth.ktx)
 
     // Testing
     testImplementation(libs.junit)

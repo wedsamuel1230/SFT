@@ -8,9 +8,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import smartracket.com.db.SmartRacketDatabase
 import smartracket.com.repository.BluetoothRepository
+import smartracket.com.repository.FirebaseSyncRepository
 import smartracket.com.repository.HealthRepository
 import smartracket.com.repository.HighlightRepository
 import smartracket.com.repository.TrainingRepository
+import smartracket.com.sync.SyncManager
 import smartracket.com.utils.BluetoothManager
 import smartracket.com.utils.StrokeClassifier
 import javax.inject.Singleton
@@ -89,6 +91,27 @@ object AppModule {
     @Singleton
     fun provideHealthRepository(@ApplicationContext context: Context): HealthRepository {
         return HealthRepository(context)
+    }
+
+    /**
+     * Provides the FirebaseSyncRepository instance.
+     */
+    @Provides
+    @Singleton
+    fun provideFirebaseSyncRepository(database: SmartRacketDatabase): FirebaseSyncRepository {
+        return FirebaseSyncRepository(database)
+    }
+
+    /**
+     * Provides the SyncManager instance.
+     */
+    @Provides
+    @Singleton
+    fun provideSyncManager(
+        @ApplicationContext context: Context,
+        firebaseSyncRepository: FirebaseSyncRepository
+    ): SyncManager {
+        return SyncManager(context, firebaseSyncRepository)
     }
 }
 

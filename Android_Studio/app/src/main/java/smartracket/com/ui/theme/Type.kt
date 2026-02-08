@@ -9,8 +9,11 @@ import androidx.compose.ui.unit.sp
 import smartracket.com.R
 
 /**
- * Samsung One font family for consistent branding across all languages.
- * Supports Latin, Simplified Chinese, and Traditional Chinese glyphs.
+ * Samsung One font family for consistent branding.
+ * Latin glyphs are rendered by bundled Samsung One TTF files.
+ * CJK glyphs (Simplified & Traditional Chinese) gracefully fall back
+ * to the platform default sans-serif, which includes full CJK coverage
+ * on all Android devices.
  */
 val AppFontFamily = FontFamily(
     Font(R.font.samsungone_400, FontWeight.Normal),
@@ -24,7 +27,7 @@ val AppFontFamily = FontFamily(
  *
  * Uses Material 3 type scale with custom sizing for
  * training displays and analytics dashboards.
- * All styles use [AppFontFamily] (Noto Sans SC) for CJK compatibility.
+ * All styles use [AppFontFamily] with platform CJK fallback.
  */
 val Typography = Typography(
     // Large display for score numbers

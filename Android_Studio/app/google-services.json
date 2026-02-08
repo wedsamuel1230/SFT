@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "545335782760",
+    "project_id": "sft-smartracket",
+    "storage_bucket": "sft-smartracket.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:545335782760:android:16294d09c982364d5d7add",
+        "android_client_info": {
+          "package_name": "smartracket.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR-WEMdUthF3u_kk8uHpA18l-hLuGcOZw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
