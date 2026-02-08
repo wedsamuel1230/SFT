@@ -14,7 +14,6 @@ import smartracket.com.repository.HighlightRepository
 import smartracket.com.repository.TrainingRepository
 import smartracket.com.sync.SyncManager
 import smartracket.com.utils.BluetoothManager
-import smartracket.com.utils.StrokeClassifier
 import javax.inject.Singleton
 
 /**
@@ -46,15 +45,6 @@ object AppModule {
     }
 
     /**
-     * Provides the StrokeClassifier instance (TensorFlow Lite).
-     */
-    @Provides
-    @Singleton
-    fun provideStrokeClassifier(@ApplicationContext context: Context): StrokeClassifier {
-        return StrokeClassifier(context)
-    }
-
-    /**
      * Provides the BluetoothRepository instance.
      */
     @Provides
@@ -69,10 +59,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTrainingRepository(
-        database: SmartRacketDatabase,
-        strokeClassifier: StrokeClassifier
+        database: SmartRacketDatabase
     ): TrainingRepository {
-        return TrainingRepository(database, strokeClassifier)
+        return TrainingRepository(database)
     }
 
     /**

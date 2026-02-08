@@ -41,6 +41,13 @@ class BluetoothRepository @Inject constructor(
     )
     val detectedStrokes: SharedFlow<MotionData> = _detectedStrokes.asSharedFlow()
 
+    // MCU model outputs (ts, stroke, score, conf, peak)
+    private val _modelOutputs = MutableSharedFlow<McuModelOutput>(
+        replay = 0,
+        extraBufferCapacity = 10
+    )
+    val modelOutputs: SharedFlow<McuModelOutput> = _modelOutputs.asSharedFlow()
+
     /**
      * Highlight trigger from MCU button press.
      * Emits Unit when the physical button on the paddle is pressed.
@@ -67,6 +74,11 @@ class BluetoothRepository @Inject constructor(
     val imuDataFlow: SharedFlow<ImuDataPacket> = bluetoothManager.imuDataFlow
 
     /**
+     * MCU model output stream.
+     */
+    val modelOutputFlow: SharedFlow<McuModelOutput> = bluetoothManager.modelOutputFlow
+
+    /**
      * Current battery level of connected device.
      */
     val batteryLevel: StateFlow<Int?> = bluetoothManager.batteryLevel
@@ -81,6 +93,13 @@ class BluetoothRepository @Inject constructor(
         scope.launch {
             bluetoothManager.imuDataFlow.collect { packet ->
                 processImuPacket(packet)
+            }
+        }
+
+        // Forward MCU model output packets
+        scope.launch {
+            bluetoothManager.modelOutputFlow.collect { output ->
+                _modelOutputs.emit(output)
             }
         }
     }

@@ -14,11 +14,13 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import org.json.JSONObject
 import smartracket.com.model.BleDeviceProfile
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.model.DevicePairing
 import smartracket.com.model.DiscoveredDevice
 import smartracket.com.model.ImuDataPacket
+import smartracket.com.model.McuModelOutput
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -98,6 +100,12 @@ class BluetoothManager @Inject constructor(
         extraBufferCapacity = 100
     )
     val imuDataFlow: SharedFlow<ImuDataPacket> = _imuDataFlow.asSharedFlow()
+
+    private val _modelOutputFlow = MutableSharedFlow<McuModelOutput>(
+        replay = 0,
+        extraBufferCapacity = 50
+    )
+    val modelOutputFlow: SharedFlow<McuModelOutput> = _modelOutputFlow.asSharedFlow()
 
     private val _batteryLevel = MutableStateFlow<Int?>(null)
     val batteryLevel: StateFlow<Int?> = _batteryLevel.asStateFlow()
@@ -435,6 +443,21 @@ class BluetoothManager @Inject constructor(
     }
 
     private fun parseImuData(data: ByteArray) {
+        if (data.isEmpty()) return
+
+        // MCU model output is sent as JSON on the IMU characteristic
+        val payload = kotlin.runCatching { String(data, Charsets.UTF_8).trim() }.getOrNull()
+        if (!payload.isNullOrEmpty() && payload.firstOrNull() == '{') {
+            val parsed = parseModelOutputJson(payload)
+            if (parsed != null) {
+                coroutineScope.launch {
+                    _modelOutputFlow.emit(parsed)
+                }
+                return
+            }
+        }
+
+        // Fallback to legacy IMU binary packet parsing
         val packet = ImuDataPacket.fromBytes(data)
         if (packet != null) {
             coroutineScope.launch {
@@ -442,6 +465,22 @@ class BluetoothManager @Inject constructor(
             }
         } else {
             Log.w(TAG, "Failed to parse IMU packet (size: ${data.size})")
+        }
+    }
+
+    private fun parseModelOutputJson(json: String): McuModelOutput? {
+        return try {
+            val obj = JSONObject(json)
+            McuModelOutput(
+                ts = obj.optLong("ts", System.currentTimeMillis()),
+                stroke = obj.optString("stroke", "unknown"),
+                score = obj.optInt("score", 0),
+                conf = obj.optDouble("conf", 0.0).toFloat(),
+                peak = obj.optDouble("peak", 0.0).toFloat()
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Invalid model output JSON: $json", e)
+            null
         }
     }
 

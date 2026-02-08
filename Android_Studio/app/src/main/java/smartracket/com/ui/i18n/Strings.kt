@@ -22,6 +22,7 @@ data class AppStrings(
 
     // region HomeScreen
     val appName: String,
+    val homeGreetings: List<String>,
     val paddleStatus: String,
     val notConnected: String,
     val connect: String,
@@ -39,6 +40,7 @@ data class AppStrings(
     val totalStrokes: String,
     val trainingTime: String,
     val recentSessions: String,
+    val quickActionsTitle: String,
     // endregion
 
     // region AnalyticsScreen
@@ -59,6 +61,7 @@ data class AppStrings(
     val notEnoughData: String,
     val completeMoreSessions: String,
     val performanceInsights: String,
+    val performanceInsightsEmpty: String,
     val improving: String,
     val declining: String,
     val deleteSessionTitle: String,
@@ -229,6 +232,12 @@ object Strings {
 
         // HomeScreen
         appName = "SmartRacket Coach",
+        homeGreetings = listOf(
+            "Good to see you on the court",
+            "Welcome back—ready for a great session?",
+            "Let’s keep the rally going today",
+            "Another day, another great swing"
+        ),
         paddleStatus = "Paddle Status",
         notConnected = "Not Connected",
         connect = "Connect",
@@ -246,6 +255,7 @@ object Strings {
         totalStrokes = "Total Strokes",
         trainingTime = "Training Time",
         recentSessions = "Recent Sessions",
+        quickActionsTitle = "Quick Actions",
 
         // AnalyticsScreen
         historyTab = "History",
@@ -265,6 +275,7 @@ object Strings {
         notEnoughData = "Not enough data",
         completeMoreSessions = "Complete more sessions to see trends.",
         performanceInsights = "Performance Insights",
+        performanceInsightsEmpty = "Complete more sessions to get insights.",
         improving = "Improving",
         declining = "Declining",
         deleteSessionTitle = "Delete Session",
@@ -411,6 +422,12 @@ object Strings {
 
         // HomeScreen
         appName = "SmartRacket Coach",
+        homeGreetings = listOf(
+            "很高兴在球场见到你",
+            "欢迎回来，准备好开练了吗？",
+            "今天也一起保持好节奏",
+            "又是一次精彩挥拍的好日子"
+        ),
         paddleStatus = "球拍状态",
         notConnected = "未连接",
         connect = "连接",
@@ -428,6 +445,7 @@ object Strings {
         totalStrokes = "总击球数",
         trainingTime = "训练时长",
         recentSessions = "近期训练",
+        quickActionsTitle = "快捷操作",
 
         // AnalyticsScreen
         historyTab = "历史",
@@ -447,6 +465,7 @@ object Strings {
         notEnoughData = "数据不足",
         completeMoreSessions = "完成更多训练以查看趋势变化。",
         performanceInsights = "表现分析",
+        performanceInsightsEmpty = "完成更多训练以获得分析洞察。",
         improving = "进步中",
         declining = "退步中",
         deleteSessionTitle = "删除训练",
@@ -593,6 +612,12 @@ object Strings {
 
         // HomeScreen
         appName = "SmartRacket Coach",
+        homeGreetings = listOf(
+            "很高興在球場見到你",
+            "歡迎回來，準備好開練了嗎？",
+            "今天也一起保持好節奏",
+            "又是一次精彩揮拍的好日子"
+        ),
         paddleStatus = "球拍狀態",
         notConnected = "未連線",
         connect = "連線",
@@ -610,6 +635,7 @@ object Strings {
         totalStrokes = "總擊球數",
         trainingTime = "訓練時長",
         recentSessions = "近期訓練",
+        quickActionsTitle = "快捷操作",
 
         // AnalyticsScreen
         historyTab = "歷史",
@@ -629,6 +655,7 @@ object Strings {
         notEnoughData = "資料不足",
         completeMoreSessions = "完成更多訓練以查看趨勢變化。",
         performanceInsights = "表現分析",
+        performanceInsightsEmpty = "完成更多訓練以取得分析洞察。",
         improving = "進步中",
         declining = "退步中",
         deleteSessionTitle = "刪除訓練",

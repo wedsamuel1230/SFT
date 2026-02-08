@@ -20,6 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import smartracket.com.R
 import smartracket.com.model.*
 import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.ui.theme.SmartRacketColors
@@ -91,8 +94,14 @@ fun TrainingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(strings.trainingTitle) },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        strings.trainingTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = strings.back)
@@ -103,7 +112,7 @@ fun TrainingScreen(
                     batteryLevel?.let { level ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 8.dp)
+                            modifier = Modifier.padding(end = 16.dp)
                         ) {
                             Icon(
                                 imageVector = when {
@@ -113,24 +122,30 @@ fun TrainingScreen(
                                     else -> Icons.Default.BatteryAlert
                                 },
                                 contentDescription = strings.battery,
-                                tint = if (level > 20) MaterialTheme.colorScheme.onSurface
-                                       else Color.Red
+                                tint = if (level > 20) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "$level%",
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelSmall
                             )
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Connection status
@@ -154,8 +169,13 @@ fun TrainingScreen(
                         )
                     }
                     SessionState.STARTING -> {
-                        CircularProgressIndicator()
-                        Text(strings.startingSession)
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(strings.startingSession)
+                            }
+                        }
                     }
                     SessionState.ACTIVE, SessionState.PAUSED -> {
                         ActiveTrainingContent(
@@ -177,8 +197,13 @@ fun TrainingScreen(
                         )
                     }
                     SessionState.STOPPING -> {
-                        CircularProgressIndicator()
-                        Text(strings.savingSession)
+                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(strings.savingSession)
+                            }
+                        }
                     }
                     SessionState.COMPLETED -> {
                         SessionCompleteContent(
@@ -193,14 +218,7 @@ fun TrainingScreen(
         }
     }
 
-    // Error snackbar
-    errorMessage?.let { message ->
-        LaunchedEffect(message) {
-            // Auto-dismiss after 3 seconds
-            kotlinx.coroutines.delay(3000)
-            viewModel.clearError()
-        }
-    }
+    // Error snackbar ...existing code...
 }
 
 @Composable
@@ -216,18 +234,19 @@ private fun ConnectionPromptCard(
     val strings = LocalAppStrings.current
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large, // Squircle
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 imageVector = Icons.Default.BluetoothSearching,
                 contentDescription = null,
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
 
@@ -251,8 +270,8 @@ private fun ConnectionPromptCard(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onRequestPermissions) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = onRequestPermissions, shape = CircleShape) {
                         Text(strings.grantPermissions)
                     }
                 }
@@ -264,15 +283,16 @@ private fun ConnectionPromptCard(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    CircularProgressIndicator()
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.5f))
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Show discovered devices
                     if (discoveredDevices.isNotEmpty()) {
                         Text(
                             text = "${strings.foundDevices}:",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -284,7 +304,7 @@ private fun ConnectionPromptCard(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     TextButton(onClick = onStopScan) {
                         Text(strings.stopScanning)
                     }
@@ -304,7 +324,7 @@ private fun ConnectionPromptCard(
                         color = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onStartScan) {
+                    Button(onClick = onStartScan, shape = CircleShape) {
                         Text(strings.tryAgain)
                     }
                 }
@@ -315,8 +335,8 @@ private fun ConnectionPromptCard(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onStartScan) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = onStartScan, shape = CircleShape) {
                         Icon(Icons.Default.BluetoothSearching, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(strings.scanForDevices)
@@ -337,24 +357,29 @@ private fun DeviceListItem(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 4.dp),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val deviceIcon = if (device.isSmartRacketDevice) {
+                painterResource(R.drawable.ic_table_tennis)
+            } else {
+                rememberVectorPainter(Icons.Default.Bluetooth)
+            }
             Icon(
-                imageVector = if (device.isSmartRacketDevice)
-                    Icons.Default.SportsTennis
-                else Icons.Default.Bluetooth,
+                painter = deviceIcon,
                 contentDescription = null,
                 tint = if (device.isSmartRacketDevice)
                     MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = device.name ?: strings.unknownDevice,
@@ -364,14 +389,14 @@ private fun DeviceListItem(
                 Text(
                     text = device.address,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             // Signal strength indicator
             Text(
                 text = "${device.rssi} dBm",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -383,75 +408,84 @@ private fun IdleStateContent(
     onStartSession: () -> Unit
 ) {
     val strings = LocalAppStrings.current
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    // One UI: Content centered, action at bottom
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Connected device info
-        if (connectionState is BluetoothConnectionState.Connected) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = SmartRacketColors.StatusConnected.copy(alpha = 0.1f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(bottom = 80.dp), // Shift visual up slightly
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Connected device info
+            if (connectionState is BluetoothConnectionState.Connected) {
+                Surface(
+                    shape = CircleShape,
+                    color = SmartRacketColors.StatusConnected.copy(alpha = 0.1f),
+                    contentColor = SmartRacketColors.StatusConnected
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.BluetoothConnected,
-                        contentDescription = null,
-                        tint = SmartRacketColors.StatusConnected
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${strings.connectedTo} ${connectionState.device.deviceName}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BluetoothConnected,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = connectionState.device.deviceName,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Main Visual
+            Icon(
+                painter = painterResource(R.drawable.ic_table_tennis),
+                contentDescription = null,
+                modifier = Modifier.size(100.dp),
+                tint = MaterialTheme.colorScheme.primaryContainer
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = strings.readyToTrain,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                 color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = strings.paddleReadyAction,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Icon(
-            imageVector = Icons.Default.SportsTennis,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = strings.readyToTrain,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = strings.paddleReadyAction,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
+        // Action Button at bottom
         Button(
             onClick = onStartSession,
             modifier = Modifier
-                .fillMaxWidth(0.7f)
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
                 .height(56.dp),
-            shape = MaterialTheme.shapes.extraLarge
+            shape = MaterialTheme.shapes.extraLarge // One UI fully rounded
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(strings.startTrainingBtn, fontSize = 18.sp)
+            Text(strings.startTrainingBtn, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -475,180 +509,202 @@ private fun ActiveTrainingContent(
     onSaveHighlight: () -> Unit
 ) {
     val strings = LocalAppStrings.current
+
+    // One UI Layout Strategy:
+    // Top 35%: Viewing Area (Stats, Live Score)
+    // Bottom 65%: Interaction Area (List, Controls)
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Timer and stats row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+        // ── Viewing Area (Top 35%) ─────────────────────────────────
+        Column(
+            modifier = Modifier
+                .weight(0.35f)
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Timer
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = formatTime(elapsedTime),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = strings.duration,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
+            // Timer and stats items in a single row
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatColumn(formatTime(elapsedTime), strings.duration)
+                StatColumn("$strokeCount", strings.strokesLabel)
+                StatColumn(if (averageScore > 0) String.format("%.1f", averageScore) else "-", strings.avgScoreLabel)
 
-            // Stroke count
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "$strokeCount",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = strings.strokesLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-
-            // Average score
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = if (averageScore > 0) String.format("%.1f", averageScore) else "-",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = strings.avgScoreLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-
-            // Heart rate
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = SmartRacketColors.HeartRatePink,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                // Heart rate indicator
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = SmartRacketColors.HeartRatePink,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = currentHeartRate?.toString() ?: "-",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
-                        text = currentHeartRate?.toString() ?: "-",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        text = strings.bpmLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    text = strings.bpmLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Large score display with animation
-        AnimatedScoreDisplay(
-            score = currentScore,
-            strokeType = lastStroke?.strokeType
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Feedback text
-        AnimatedVisibility(
-            visible = currentFeedback.isNotEmpty(),
-            enter = fadeIn() + slideInVertically(),
-            exit = fadeOut() + slideOutVertically()
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = currentFeedback,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Highlight save button (only enabled when BLE connected)
-        HighlightSaveButton(
-            state = highlightSaveState,
-            enabled = lastStroke != null && !isPaused && isConnected,
-            onClick = onSaveHighlight
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Control buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            if (isPaused) {
-                Button(
-                    onClick = onResume,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SmartRacketColors.StatusConnected
-                    )
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(strings.resume)
-                }
-            } else {
-                OutlinedButton(onClick = onPause) {
-                    Icon(Icons.Default.Pause, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(strings.pause)
-                }
             }
 
-            Button(
-                onClick = onStop,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SmartRacketColors.StatusError
-                )
-            ) {
-                Icon(Icons.Default.Stop, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(strings.stop)
-            }
-        }
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Recent strokes list
-        if (recentStrokes.isNotEmpty()) {
-            Text(
-                text = strings.recentStrokesLabel,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
+            // Large Score Display
+            AnimatedScoreDisplay(
+                score = currentScore,
+                strokeType = lastStroke?.strokeType
             )
+            
+            Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // Feedback Toast
+            AnimatedVisibility(
+                visible = currentFeedback.isNotEmpty(),
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically()
             ) {
-                items(recentStrokes) { stroke ->
-                    RecentStrokeItem(stroke = stroke)
+                Surface(
+                    shape = MaterialTheme.shapes.medium, // Squircle 16dp
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = currentFeedback,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
                 }
             }
         }
+
+        // ── Interaction Area (Bottom 65%) ──────────────────────────
+        Surface(
+            modifier = Modifier
+                .weight(0.65f)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), // One UI sheet style
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) // Subtle separation
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                // Recent Strokes List Handled Here
+                // This fills the space between Viewing Area and Bottom Buttons
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "Recent Strokes", // TODO: i18n
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                )
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(recentStrokes) { stroke ->
+                        RecentStrokeItem(stroke)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Action area at the very bottom
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+                ) {
+                    // Highlight Save Button (Contextual)
+                    if (isConnected && !isPaused && lastStroke != null) {
+                        HighlightSaveButton(
+                            state = highlightSaveState,
+                            enabled = true,
+                            onClick = onSaveHighlight
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // Main Control Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Pause/Resume (Primary action, larger)
+                        Button(
+                            onClick = if (isPaused) onResume else onPause,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(64.dp), // Tall target for easy reach
+                            shape = MaterialTheme.shapes.extraLarge, // Squircle 28dp
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isPaused) SmartRacketColors.StatusConnected else MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause, 
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                if (isPaused) strings.resume else strings.pause,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Stop (Secondary action)
+                        FilledTonalButton(
+                            onClick = onStop,
+                            modifier = Modifier
+                                .height(64.dp)
+                                .width(80.dp),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(Icons.Default.Stop, contentDescription = strings.stop)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatColumn(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

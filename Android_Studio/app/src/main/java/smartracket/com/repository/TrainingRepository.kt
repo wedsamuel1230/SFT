@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.map
 import smartracket.com.db.SmartRacketDatabase
 import smartracket.com.db.StrokeTypeCount
 import smartracket.com.model.*
-import smartracket.com.utils.StrokeClassifier
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,8 +19,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class TrainingRepository @Inject constructor(
-    private val database: SmartRacketDatabase,
-    private val strokeClassifier: StrokeClassifier
+    private val database: SmartRacketDatabase
 ) {
     private val sessionDao = database.trainingSessionDao()
     private val strokeDao = database.strokeDao()
@@ -150,22 +148,19 @@ class TrainingRepository @Inject constructor(
     // ============= Stroke Management =============
 
     /**
-     * Classify motion data and record the stroke.
+     * Record a stroke using MCU-provided model output.
      */
-    suspend fun recordStroke(sessionId: Long, motionData: MotionData): Stroke {
-        // Classify the stroke
-        val classification = strokeClassifier.classify(motionData)
-
+    suspend fun recordStrokeFromMcu(sessionId: Long, output: McuModelOutput): Stroke {
         val stroke = Stroke(
             sessionId = sessionId,
-            timestamp = System.currentTimeMillis(),
-            strokeType = classification.strokeType.name,
-            score = classification.score,
-            motionData = motionData,
-            feedback = classification.feedback,
-            confidence = classification.confidence,
-            peakAcceleration = calculatePeakAcceleration(motionData),
-            strokeDuration = calculateStrokeDuration(motionData)
+            timestamp = if (output.ts > 0) output.ts else System.currentTimeMillis(),
+            strokeType = output.stroke,
+            score = output.score,
+            motionData = MotionData.empty(),
+            feedback = "MCU",
+            confidence = output.conf,
+            peakAcceleration = output.peak,
+            strokeDuration = null
         )
 
         val strokeId = strokeDao.insert(stroke)
@@ -266,35 +261,7 @@ class TrainingRepository @Inject constructor(
 
     // ============= Helper Methods =============
 
-    private fun calculatePeakAcceleration(motionData: MotionData): Float {
-        if (motionData.accelX.isEmpty()) return 0f
-
-        return motionData.accelX.indices.maxOfOrNull { i ->
-            val ax = motionData.accelX.getOrElse(i) { 0f }
-            val ay = motionData.accelY.getOrElse(i) { 0f }
-            val az = motionData.accelZ.getOrElse(i) { 0f }
-            kotlin.math.sqrt(ax * ax + ay * ay + az * az)
-        } ?: 0f
-    }
-
-    private fun calculateStrokeDuration(motionData: MotionData): Long {
-        if (motionData.timestamps.isEmpty()) return 0
-        return motionData.timestamps.last() - motionData.timestamps.first()
-    }
-
-    /**
-     * Initialize the stroke classifier.
-     */
-    suspend fun initializeClassifier(): Boolean {
-        return strokeClassifier.initialize()
-    }
-
-    /**
-     * Check if classifier is ready.
-     */
-    fun isClassifierReady(): Boolean {
-        return strokeClassifier.isReady()
-    }
+    // Classifier helpers removed (MCU provides model output via BLE)
 }
 
 /**

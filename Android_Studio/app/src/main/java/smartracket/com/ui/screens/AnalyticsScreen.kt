@@ -565,7 +565,7 @@ private fun TrendsTab(
                         }
                     } else {
                         Text(
-                            text = "Complete more sessions to get insights",
+                            text = strings.performanceInsightsEmpty,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )

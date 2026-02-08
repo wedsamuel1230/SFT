@@ -1,7 +1,9 @@
 # Active Context
 
 ## Current Focus
-All milestones (1–5) COMPLETE. Firebase hybrid sync implemented.
+All milestones (1–5) COMPLETE. UI Polished for Samsung One UI.
+- Layout Refactor: `TrainingScreen` now strictly follows One UI "Viewing Area" (Top 35%) vs "Interaction Area" (Bottom 65%) split.
+- Theme: Samsung Blue palette (#1428A0/#A6ADDB) enforced across Compose and XML.
 - Hybrid Firebase integration: Room local cache + Firestore cloud sync for Galaxy Watch.
 - FirebaseSyncRepository: anonymous auth, session-granular push to Firestore.
 - SyncWorker: WorkManager periodic (15min) + one-shot sync with network constraints.
@@ -17,10 +19,8 @@ All milestones (1–5) COMPLETE. Firebase hybrid sync implemented.
 - Galaxy Watch companion app (Wear OS) not yet built — Firestore data ready for it.
 
 ## Notes
-- Firebase deps: firebase-bom 33.7.0, firestore-ktx, auth-ktx, google-services plugin 4.4.2.
-- Hilt-work 1.2.0 + hilt-compiler for @HiltWorker support.
-- SmartRacketApplication implements Configuration.Provider for custom WorkManager init.
-- Default WorkManager initializer disabled in AndroidManifest.xml.
+- `TrainingScreen.kt`: `ActiveTrainingContent` rewritten to use weighted Column split. Top=Stats/Score, Bottom=List/Controls. Added missing `recentStrokes` list.
+- One UI Layout Rules: Top 30-40% for viewing, Bottom 60-70% for interaction.
 - Firestore schema: users/{uid}/sessions/{sessionId} + /strokes + /highlights subcollections.
 - Sync is session-granular: completed sessions with isSynced=false get pushed with all strokes/highlights.
 - Strokes batched in chunks of 400 (Firestore batch limit is 500).

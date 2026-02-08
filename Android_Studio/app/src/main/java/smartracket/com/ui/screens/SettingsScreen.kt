@@ -13,12 +13,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import smartracket.com.R
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.model.Language
 import smartracket.com.model.ThemeMode
@@ -145,7 +148,7 @@ fun SettingsScreen(
                 } else {
                     pairedDevices.forEach { device ->
                         SettingsItem(
-                            icon = Icons.Default.SportsTennis,
+                            icon = painterResource(R.drawable.ic_table_tennis),
                             title = device.deviceName + if (device.isPrimary) " ★" else "",
                             subtitle = "${strings.lastConnected}: ${device.lastConnectedFormatted}"
                         ) {
@@ -424,6 +427,51 @@ private fun SettingsItem(
     ) {
         Icon(
             imageVector = icon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+
+        trailing?.invoke()
+    }
+}
+
+@Composable
+private fun SettingsItem(
+    icon: Painter,
+    title: String,
+    subtitle: String,
+    iconTint: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+    onClick: (() -> Unit)? = null,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) Modifier.clickable { onClick() }
+                else Modifier
+            )
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = icon,
             contentDescription = null,
             tint = iconTint,
             modifier = Modifier.size(24.dp)

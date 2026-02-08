@@ -85,20 +85,15 @@ class TrainingViewModel @Inject constructor(
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     
     init {
-        // Initialize classifier on startup
-        viewModelScope.launch {
-            trainingRepository.initializeClassifier()
-        }
-        
         // Initialize Health Connect
         viewModelScope.launch {
             healthRepository.initialize()
         }
         
-        // Listen for detected strokes
+        // Listen for MCU model outputs
         viewModelScope.launch {
-            bluetoothRepository.detectedStrokes.collect { motionData ->
-                processDetectedStroke(motionData)
+            bluetoothRepository.modelOutputs.collect { output ->
+                processMcuStroke(output)
             }
         }
         
@@ -258,13 +253,13 @@ class TrainingViewModel @Inject constructor(
     
     // ============= Stroke Processing =============
     
-    private suspend fun processDetectedStroke(motionData: MotionData) {
+    private suspend fun processMcuStroke(output: McuModelOutput) {
         val session = _currentSession.value ?: return
         if (_sessionState.value != SessionState.ACTIVE) return
         
         try {
-            // Record and classify the stroke
-            val stroke = trainingRepository.recordStroke(session.sessionId, motionData)
+            // Record stroke from MCU model output
+            val stroke = trainingRepository.recordStrokeFromMcu(session.sessionId, output)
             
             // Update UI state
             _lastStroke.value = stroke
@@ -281,7 +276,7 @@ class TrainingViewModel @Inject constructor(
             current.add(0, stroke)
             _recentStrokes.value = current.take(10)
             
-            // Add to highlight buffer
+            // Add to highlight buffer (motion data is unavailable from MCU)
             val strokeInfo = StrokeBufferInfo(
                 strokeType = stroke.strokeType,
                 score = stroke.score,
@@ -289,7 +284,7 @@ class TrainingViewModel @Inject constructor(
                 feedback = stroke.feedback
             )
             highlightRepository.addToBuffer(
-                motionData = motionData,
+                motionData = MotionData.empty(),
                 heartRate = currentHeartRate.value,
                 strokeInfo = strokeInfo
             )

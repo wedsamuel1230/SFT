@@ -52,6 +52,18 @@
 
 ---
 
+## 2026-02-08 — v0.4.1
+**Objective:** Fix compilation error in TrainingScreen.kt caused by extra closing braces after refactoring ActiveTrainingContent.
+
+**Actions:**
+- Identified extra closing braces at lines 703-705 in TrainingScreen.kt.
+- Removed the orphaned `}        }    }` that were left after the ActiveTrainingContent refactor.
+- Verified build passes successfully.
+
+**Status:** ✅ Complete
+
+---
+
 ## 2026-02-08 — v0.4.0
 **Objective:** Implement BLE reliability fixes (operation queue, status handling, MTU/priority).
 
@@ -111,6 +123,32 @@
 - Added Cloud Sync section to SettingsScreen: Firebase config notice, sync toggle, sync status, Sync Now button.
 - Updated SettingsViewModel with cloudSyncEnabled preference, syncNow(), setCloudSyncEnabled().
 - Build: assembleDebug ✅, test ✅ (67 tasks, 0 failures).
+
+**Status:** ✅ Complete
+
+---
+
+## 2026-02-08 — v0.7.0
+**Objective:** Generate Technical Whitepaper and Investor Deck for SmartRacket due diligence and roadshow.
+
+**Actions:**
+- Deep dive analysis of entire codebase: verified tech stack (Kotlin/Compose/Room/Firebase/TFLite/BLE), data models (Stroke, TrainingSession, HighlightClip, McuModelOutput, BleDeviceProfile), and architecture (3-tier Edge-Mobile-Cloud).
+- Created docs/technical_whitepaper.md: 6-chapter whitepaper covering System Summary, Functional Specs (6 features with Trigger/Logic/EdgeCases/DataStructure), System Architecture (3-layer diagram, BLE GATT profile, ML deployment strategy, Android app architecture, DB schema), Data & Privacy (GDPR, encryption flow, anonymous auth), and Technical Trade-offs (latency vs accuracy, IMU vs CV, Room+Firebase vs pure cloud).
+- Created docs/investor_deck.md: 10-slide pitch deck with Title/Key Bullets/Speaker Notes per slide. Covers: Problem, Solution, Market, Tech Moat, Product Demo, Business Model, Competitive Advantage, Roadmap, Team, Fundraising Ask.
+- Both documents are terminologically consistent and reference the same hardware (nRF52840 Sense), ML architecture (Two-Stage Pipeline), and data structures.
+
+**Status:** ✅ Complete
+
+---
+
+## 2026-02-08 — v0.7.1
+**Objective:** Correct ML architecture descriptions and fix PDF generation for technical whitepaper.
+
+**Actions:**
+- Corrected ML deployment strategy across both docs: changed from hybrid two-stage pipeline to MCU-only Edge Impulse inference with 3 classes (idle/forehand/backhand). Removed all references to Phone-side TFLite inference in current architecture, kept as future roadmap.
+- Updated technical_whitepaper.md: Section 1 (system summary), Section 2.1 (backend logic), Section 3.1 (architecture diagram), Section 3.3 (ML strategy), Section 5.1 (trade-offs table and analysis), Section 6.2 (versions table with Edge Impulse SDK).
+- Updated investor_deck.md: Slide 4 key bullets and speaker notes to reflect MCU-only Edge Impulse architecture.
+- Fixed PDF generation: replaced Chinese anchor names with ASCII IDs (#system-summary, #functional-specs, etc.) to resolve LaTeX hyper reference warnings. Used XeLaTeX with ctex document class and Microsoft JhengHei font for proper Traditional Chinese rendering.
 
 **Status:** ✅ Complete
 
