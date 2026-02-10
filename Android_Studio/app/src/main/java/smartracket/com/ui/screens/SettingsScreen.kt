@@ -50,6 +50,7 @@ fun SettingsScreen(
     val pairedDevices by viewModel.pairedDevices.collectAsState()
     val isHealthConnectAvailable by viewModel.isHealthConnectAvailable.collectAsState()
     val hasHealthPermissions by viewModel.hasHealthPermissions.collectAsState()
+    val isSamsungHealthConnected by viewModel.isSamsungHealthConnected.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsState()
     val language by viewModel.language.collectAsState()
@@ -196,6 +197,30 @@ fun SettingsScreen(
                         TextButton(onClick = { viewModel.requestHealthPermissions() }) {
                             Text(strings.connect)
                         }
+                    }
+                }
+
+                // Samsung Health connection
+                SettingsItem(
+                    icon = Icons.Default.Watch,
+                    title = strings.samsungHealth,
+                    subtitle = if (isSamsungHealthConnected)
+                        strings.samsungHealthConnected
+                    else
+                        strings.samsungHealthDescription,
+                    iconTint = if (isSamsungHealthConnected) MaterialTheme.colorScheme.primary
+                              else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (isSamsungHealthConnected) viewModel.disconnectSamsungHealth()
+                            else viewModel.connectSamsungHealth()
+                        }
+                    ) {
+                        Text(
+                            if (isSamsungHealthConnected) strings.disconnect
+                            else strings.connect
+                        )
                     }
                 }
             }

@@ -1,9 +1,9 @@
 #include <ArduinoBLE.h>
 
-// ====== BLE UUIDs (change if you want) ======
-const char* SERVICE_UUID      = "12345678-1234-5678-1234-56789abcdef0";
-const char* DATA_CHAR_UUID    = "12345678-1234-5678-1234-56789abcdef1";
-const char* CTRL_CHAR_UUID    = "12345678-1234-5678-1234-56789abcdef2";
+// ====== BLE UUIDs — must match BleDeviceProfile.DEFAULT in the Android app ======
+const char* SERVICE_UUID      = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const char* DATA_CHAR_UUID    = "beb5483e-36e1-4688-b7f5-ea07361b26a8";  // IMU / model-output characteristic
+const char* CTRL_CHAR_UUID    = "beb5483e-36e1-4688-b7f5-ea07361b26a9";  // control characteristic
 
 // ====== Config ======
 const unsigned long SEND_INTERVAL_MS = 250;  // 4 Hz
@@ -17,8 +17,8 @@ BLEByteCharacteristic ctrlChar(CTRL_CHAR_UUID, BLEWrite);
 unsigned long lastSend = 0;
 bool streamingEnabled = true;
 
-// Simple stroke types to mimic model output
-const char* strokeTypes[] = {"fh", "bh", "sm", "ch"}; // forehand, backhand, smash, chop
+// Prototype stroke types: forehand, backhand, drive
+const char* strokeTypes[] = {"forehand", "backhand", "drive"};
 
 void setup() {
   Serial.begin(115200);
@@ -29,7 +29,7 @@ void setup() {
     while (1) {}
   }
 
-  BLE.setLocalName("SmartRacketMock");
+  BLE.setLocalName("SmartRacket");
   BLE.setAdvertisedService(modelService);
 
   modelService.addCharacteristic(dataChar);
@@ -63,18 +63,19 @@ void loop() {
     if (now - lastSend >= SEND_INTERVAL_MS) {
       lastSend = now;
 
-      // Generate plausible mock values
-      const char* stroke = strokeTypes[random(0, 4)];
-      int score = random(5, 10);                       // 5–9
-      float conf = random(80, 99) / 100.0;             // 0.80–0.98
+      // Generate plausible mock values (3 stroke types only)
+      const char* stroke = strokeTypes[random(0, 3)];
+      float conf = random(50, 99) / 100.0;             // 0.50–0.98
       float peak = random(80, 160) / 10.0;             // 8.0–16.0
       unsigned long ts = millis();
 
-      // Compact JSON payload
+      // JSON payload — keys match Android BluetoothManager.parseModelOutputJson:
+      //   ts → timestamp, stroke → stroke type, conf → confidence, peak → peak accel
+      //   NOTE: score is NOT sent — Android app calculates score from conf
       char payload[96];
       snprintf(payload, sizeof(payload),
-               "{\"t\":%lu,\"s\":\"%s\",\"sc\":%d,\"c\":%.2f,\"p\":%.1f}",
-               ts, stroke, score, conf, peak);
+               "{\"ts\":%lu,\"stroke\":\"%s\",\"conf\":%.2f,\"peak\":%.1f}",
+               ts, stroke, conf, peak);
 
       dataChar.setValue(payload);
       Serial.println(payload);

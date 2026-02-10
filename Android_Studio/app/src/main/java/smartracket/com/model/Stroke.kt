@@ -36,7 +36,7 @@ data class Stroke(
     /** Unix timestamp when the stroke was detected */
     val timestamp: Long,
 
-    /** Classified stroke type (e.g., "forehand_loop", "backhand_block", "chop") */
+    /** Classified stroke type (e.g., "forehand", "backhand", "drive") */
     val strokeType: String,
 
     /** Performance score from 1-10 */
@@ -97,22 +97,13 @@ data class MotionData(
 }
 
 /**
- * Enumeration of supported stroke types.
+ * Enumeration of supported stroke types for prototype.
+ * Only forehand, backhand, and drive are used.
  */
 enum class StrokeType(val displayName: String, val description: String) {
-    FOREHAND_LOOP("Forehand Loop", "Topspin attack with forward swing"),
-    FOREHAND_DRIVE("Forehand Drive", "Fast flat forehand shot"),
-    FOREHAND_FLICK("Forehand Flick", "Quick wrist flip over the table"),
-    BACKHAND_LOOP("Backhand Loop", "Topspin from backhand side"),
-    BACKHAND_DRIVE("Backhand Drive", "Flat backhand attack"),
-    BACKHAND_FLICK("Backhand Flick", "Quick backhand flip"),
-    FOREHAND_BLOCK("Forehand Block", "Defensive forehand return"),
-    BACKHAND_BLOCK("Backhand Block", "Defensive backhand return"),
-    FOREHAND_CHOP("Forehand Chop", "Backspin defensive shot"),
-    BACKHAND_CHOP("Backhand Chop", "Backspin from backhand"),
-    FOREHAND_PUSH("Forehand Push", "Short backspin return"),
-    BACKHAND_PUSH("Backhand Push", "Short backspin from backhand"),
-    SERVE("Serve", "Service stroke"),
+    FOREHAND("Forehand", "Standard forehand stroke"),
+    BACKHAND("Backhand", "Standard backhand stroke"),
+    DRIVE("Drive", "Fast flat drive shot"),
     UNKNOWN("Unknown", "Unclassified stroke");
 
     companion object {

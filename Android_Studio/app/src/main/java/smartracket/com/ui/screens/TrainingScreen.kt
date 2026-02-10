@@ -67,7 +67,65 @@ fun TrainingScreen(
     val highlightSaveState by viewModel.highlightSaveState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
+    val healthAlert by viewModel.showHealthAlert.collectAsState()
     val strings = LocalAppStrings.current
+
+    // Health alert dialog
+    healthAlert?.let { alert ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissHealthAlert() },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = strings.healthAlertTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = when (alert.type) {
+                            smartracket.com.repository.HealthAlertType.HEART_RATE_HIGH,
+                            smartracket.com.repository.HealthAlertType.HEART_RATE_DANGER ->
+                                strings.heartRateTooHigh
+                            smartracket.com.repository.HealthAlertType.BLOOD_PRESSURE_HIGH ->
+                                strings.bloodPressureTooHigh
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = strings.takeARestMessage,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.pauseForRest() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(strings.restNow)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissHealthAlert() }) {
+                    Text(strings.stayActive)
+                }
+            }
+        )
+    }
 
     // Bluetooth permissions
     val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

@@ -10,7 +10,10 @@ import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import smartracket.com.model.HeartRateReading
 import java.time.Instant
@@ -19,12 +22,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository for Health Connect integration.
+ * Repository for Health Connect and Samsung Health SDK integration.
  * 
  * Provides access to:
  * - Heart rate data from Samsung Health / Health Connect
+ * - Blood pressure data
  * - Calorie burn data
  * - Exercise session sync
+ * - Health alerts for dangerous readings
  */
 @Singleton
 class HealthRepository @Inject constructor(
@@ -32,6 +37,12 @@ class HealthRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "HealthRepository"
+
+        // Health thresholds for alerts
+        const val HEART_RATE_WARNING_THRESHOLD = 180  // bpm
+        const val HEART_RATE_DANGER_THRESHOLD = 200   // bpm
+        const val SYSTOLIC_BP_WARNING = 140            // mmHg
+        const val DIASTOLIC_BP_WARNING = 90             // mmHg
         
         // Required permissions
         val REQUIRED_PERMISSIONS = setOf(
@@ -52,6 +63,20 @@ class HealthRepository @Inject constructor(
     
     private val _currentHeartRate = MutableStateFlow<Int?>(null)
     val currentHeartRate: StateFlow<Int?> = _currentHeartRate.asStateFlow()
+
+    private val _currentBloodPressure = MutableStateFlow<BloodPressureReading?>(null)
+    val currentBloodPressure: StateFlow<BloodPressureReading?> = _currentBloodPressure.asStateFlow()
+
+    /** Emits a [HealthAlert] whenever a reading exceeds safe thresholds. */
+    private val _healthAlert = MutableSharedFlow<HealthAlert>(
+        replay = 0,
+        extraBufferCapacity = 1
+    )
+    val healthAlert: SharedFlow<HealthAlert> = _healthAlert.asSharedFlow()
+
+    /** Samsung Health connection state */
+    private val _isSamsungHealthConnected = MutableStateFlow(false)
+    val isSamsungHealthConnected: StateFlow<Boolean> = _isSamsungHealthConnected.asStateFlow()
     
     /**
      * Initialize Health Connect client.
@@ -256,9 +281,86 @@ class HealthRepository @Inject constructor(
     
     /**
      * Update current heart rate from external source (e.g., Galaxy Watch).
+     * Checks thresholds and emits HealthAlert if necessary.
      */
     fun updateCurrentHeartRate(bpm: Int) {
         _currentHeartRate.value = bpm
+        // Check for dangerous heart rate
+        if (bpm >= HEART_RATE_DANGER_THRESHOLD) {
+            _healthAlert.tryEmit(
+                HealthAlert(
+                    type = HealthAlertType.HEART_RATE_DANGER,
+                    value = bpm.toFloat(),
+                    message = "Heart rate: $bpm bpm — Stop immediately!",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        } else if (bpm >= HEART_RATE_WARNING_THRESHOLD) {
+            _healthAlert.tryEmit(
+                HealthAlert(
+                    type = HealthAlertType.HEART_RATE_HIGH,
+                    value = bpm.toFloat(),
+                    message = "Heart rate: $bpm bpm — Consider resting.",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    /**
+     * Update current blood pressure from external source (e.g., Galaxy Watch).
+     * Checks thresholds and emits HealthAlert if necessary.
+     */
+    fun updateCurrentBloodPressure(systolic: Int, diastolic: Int) {
+        val reading = BloodPressureReading(
+            systolic = systolic,
+            diastolic = diastolic,
+            timestamp = System.currentTimeMillis()
+        )
+        _currentBloodPressure.value = reading
+
+        if (systolic >= SYSTOLIC_BP_WARNING || diastolic >= DIASTOLIC_BP_WARNING) {
+            _healthAlert.tryEmit(
+                HealthAlert(
+                    type = HealthAlertType.BLOOD_PRESSURE_HIGH,
+                    value = systolic.toFloat(),
+                    message = "Blood pressure: $systolic/$diastolic mmHg — Take a break.",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    /**
+     * Connect to Samsung Health.
+     * In production, this would use the Samsung Health SDK to establish a connection.
+     * For prototype, we use Health Connect as the bridge.
+     */
+    suspend fun connectSamsungHealth(): Boolean {
+        return try {
+            val initialized = initialize()
+            if (initialized) {
+                val hasPerms = checkPermissions()
+                _isSamsungHealthConnected.value = hasPerms
+                hasPerms
+            } else {
+                _isSamsungHealthConnected.value = false
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to connect Samsung Health", e)
+            _isSamsungHealthConnected.value = false
+            false
+        }
+    }
+
+    /**
+     * Disconnect from Samsung Health.
+     */
+    fun disconnectSamsungHealth() {
+        _isSamsungHealthConnected.value = false
+        _currentHeartRate.value = null
+        _currentBloodPressure.value = null
     }
 }
 
@@ -282,4 +384,32 @@ data class ExerciseSessionInfo(
     val endTime: Long,
     val notes: String?
 )
+
+/**
+ * Blood pressure reading.
+ */
+data class BloodPressureReading(
+    val systolic: Int,
+    val diastolic: Int,
+    val timestamp: Long
+)
+
+/**
+ * Health alert triggered when vitals exceed safe thresholds.
+ */
+data class HealthAlert(
+    val type: HealthAlertType,
+    val value: Float,
+    val message: String,
+    val timestamp: Long
+)
+
+/**
+ * Types of health alerts.
+ */
+enum class HealthAlertType {
+    HEART_RATE_HIGH,
+    HEART_RATE_DANGER,
+    BLOOD_PRESSURE_HIGH
+}
 

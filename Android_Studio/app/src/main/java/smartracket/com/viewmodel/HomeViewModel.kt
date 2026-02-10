@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import smartracket.com.model.BluetoothConnectionState
 import smartracket.com.model.TrainingSession
+import smartracket.com.repository.BloodPressureReading
 import smartracket.com.repository.BluetoothRepository
 import smartracket.com.repository.HealthRepository
 import smartracket.com.repository.TrainingRepository
@@ -38,6 +39,12 @@ class HomeViewModel @Inject constructor(
 
     // Current heart rate
     val currentHeartRate: StateFlow<Int?> = healthRepository.currentHeartRate
+
+    // Current blood pressure
+    val currentBloodPressure: StateFlow<BloodPressureReading?> = healthRepository.currentBloodPressure
+
+    // Samsung Health connection status
+    val isSamsungHealthConnected: StateFlow<Boolean> = healthRepository.isSamsungHealthConnected
 
     // Today's summary
     private val _todaySummary = MutableStateFlow(TodaySummaryUi())

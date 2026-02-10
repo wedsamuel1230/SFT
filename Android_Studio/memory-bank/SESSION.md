@@ -141,6 +141,22 @@
 
 ---
 
+## 2026-02-10 — v0.8.0
+**Objective:** Verify and restore codebase after GitHub data loss — MCU migration scope.
+
+**Actions:**
+- Full codebase scan: 45 Kotlin source files across 11 packages confirmed present.
+- Verified McuModelOutput, BluetoothRepository (MCU BLE flows), TrainingRepository (recordStrokeFromMcu), AppModule (no StrokeClassifier provider) all intact.
+- StrokeClassifier.kt exists as dead code (382 lines) — kept as fallback.
+- All UI screens, viewmodels, i18n (Strings.kt), theming (Color.kt/Theme.kt), Firebase sync, ic_table_tennis drawable confirmed present.
+- Build: `assembleDebug` → BUILD SUCCESSFUL (42 tasks, 0 failures).
+- No restoration needed — local workspace already contains all MCU migration changes.
+- Updated activeContext.md with MCU migration status and Git blocker.
+
+**Status:** ✅ Complete
+
+---
+
 ## 2026-02-08 — v0.7.1
 **Objective:** Correct ML architecture descriptions and fix PDF generation for technical whitepaper.
 
@@ -149,6 +165,31 @@
 - Updated technical_whitepaper.md: Section 1 (system summary), Section 2.1 (backend logic), Section 3.1 (architecture diagram), Section 3.3 (ML strategy), Section 5.1 (trade-offs table and analysis), Section 6.2 (versions table with Edge Impulse SDK).
 - Updated investor_deck.md: Slide 4 key bullets and speaker notes to reflect MCU-only Edge Impulse architecture.
 - Fixed PDF generation: replaced Chinese anchor names with ASCII IDs (#system-summary, #functional-specs, etc.) to resolve LaTeX hyper reference warnings. Used XeLaTeX with ctex document class and Microsoft JhengHei font for proper Traditional Chinese rendering.
+
+**Status:** ✅ Complete
+
+---
+
+## 2026-02-10 — v0.9.0
+**Objective:** BLE protocol alignment, prototype stroke types, health & wellness features, Samsung Health integration.
+
+**Actions:**
+- Aligned test.ino BLE UUIDs with BleDeviceProfile.DEFAULT (service/data/ctrl UUIDs matching).
+- Reduced StrokeType enum from 14 to 3+UNKNOWN (FOREHAND, BACKHAND, DRIVE) for prototype.
+- Updated test.ino: stroke types, JSON format (ts/stroke/conf/peak), removed score field.
+- McuModelOutput: removed `score` constructor param, added computed `score` from `conf` (conf*10, coerced 1-10).
+- BluetoothManager: parseModelOutputJson updated to not parse `score` from JSON.
+- HealthRepository: added blood pressure tracking, health alerts (HR≥180, BP≥140/90), Samsung Health connect/disconnect methods.
+- Added 30+ i18n strings for health & wellness across EN/ZH-CN/ZH-TW.
+- HomeViewModel: exposed blood pressure and Samsung Health connection state.
+- HomeScreen: removed BPM from TodaySummaryCard, created HealthWellnessCard (heart rate, blood pressure, Samsung Health status).
+- TrainingViewModel: added health alert observation, dismissHealthAlert(), pauseForRest().
+- TrainingScreen: added health alert dialog with Rest Now / Continue buttons.
+- SettingsViewModel: added Samsung Health connect/disconnect methods.
+- SettingsScreen: added Samsung Health connection item in Health & Fitness section.
+- StrokeClassifier: replaced 382-line dead code with deprecated stub (classification runs on MCU).
+- Fixed missing ZH-CN function declaration in Strings.kt.
+- Build verified: assembleDebug BUILD SUCCESSFUL.
 
 **Status:** ✅ Complete
 

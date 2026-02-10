@@ -73,6 +73,9 @@ class TrainingViewModel @Inject constructor(
     // ============= Health =============
     
     val currentHeartRate: StateFlow<Int?> = healthRepository.currentHeartRate
+
+    private val _showHealthAlert = MutableStateFlow<HealthAlert?>(null)
+    val showHealthAlert: StateFlow<HealthAlert?> = _showHealthAlert.asStateFlow()
     
     // ============= Highlights =============
     
@@ -131,6 +134,30 @@ class TrainingViewModel @Inject constructor(
                 delay(5000)  // Every 5 seconds
             }
         }
+
+        // Listen for health alerts during training
+        viewModelScope.launch {
+            healthRepository.healthAlert.collect { alert ->
+                if (_sessionState.value == SessionState.ACTIVE) {
+                    _showHealthAlert.value = alert
+                }
+            }
+        }
+    }
+
+    /**
+     * Dismiss the current health alert.
+     */
+    fun dismissHealthAlert() {
+        _showHealthAlert.value = null
+    }
+
+    /**
+     * Pause session due to health alert and dismiss.
+     */
+    fun pauseForRest() {
+        _showHealthAlert.value = null
+        pauseSession()
     }
     
     // ============= Session Control =============

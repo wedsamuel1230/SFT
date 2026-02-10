@@ -70,6 +70,9 @@ class SettingsViewModel @Inject constructor(
     val isHealthConnectAvailable: StateFlow<Boolean> = healthRepository.isAvailable
     val hasHealthPermissions: StateFlow<Boolean> = healthRepository.hasPermissions
 
+    // Samsung Health state
+    val isSamsungHealthConnected: StateFlow<Boolean> = healthRepository.isSamsungHealthConnected
+
     // Settings
     private val _autoSaveThreshold = MutableStateFlow(8)
     val autoSaveThreshold: StateFlow<Int> = _autoSaveThreshold.asStateFlow()
@@ -181,6 +184,20 @@ class SettingsViewModel @Inject constructor(
         // In a real app, this would launch the Health Connect permission UI
         viewModelScope.launch {
             healthRepository.checkPermissions()
+        }
+    }
+
+    // ============= Samsung Health =============
+
+    fun connectSamsungHealth() {
+        viewModelScope.launch {
+            healthRepository.connectSamsungHealth()
+        }
+    }
+
+    fun disconnectSamsungHealth() {
+        viewModelScope.launch {
+            healthRepository.disconnectSamsungHealth()
         }
     }
 

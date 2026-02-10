@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import smartracket.com.R
 import smartracket.com.model.BluetoothConnectionState
+import smartracket.com.repository.BloodPressureReading
 import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.ui.theme.SmartRacketColors
 import smartracket.com.ui.theme.scoreColor
@@ -53,6 +54,8 @@ fun HomeScreen(
     val connectionState by viewModel.connectionState.collectAsState()
     val todaySummary by viewModel.todaySummary.collectAsState()
     val currentHeartRate by viewModel.currentHeartRate.collectAsState()
+    val currentBloodPressure by viewModel.currentBloodPressure.collectAsState()
+    val isSamsungHealthConnected by viewModel.isSamsungHealthConnected.collectAsState()
     val allTimeStats by viewModel.allTimeStats.collectAsState()
     val recentSessions by viewModel.recentSessions.collectAsState()
     val strings = LocalAppStrings.current
@@ -105,8 +108,18 @@ fun HomeScreen(
                 TodaySummaryCard(
                     totalStrokes = todaySummary.totalStrokes,
                     avgScore = todaySummary.avgScore,
-                    sessionsCount = todaySummary.sessionsCount,
-                    currentHeartRate = currentHeartRate
+                    sessionsCount = todaySummary.sessionsCount
+                )
+            }
+        }
+
+        // Health & Wellness Card
+        item {
+            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                HealthWellnessCard(
+                    currentHeartRate = currentHeartRate,
+                    currentBloodPressure = currentBloodPressure,
+                    isSamsungHealthConnected = isSamsungHealthConnected
                 )
             }
         }
@@ -310,14 +323,12 @@ private fun convertToBackgroundColor(color: Color, isDark: Boolean): Color {
 private fun TodaySummaryCard(
     totalStrokes: Int,
     avgScore: Float,
-    sessionsCount: Int,
-    currentHeartRate: Int?
+    sessionsCount: Int
 ) {
     val strings = LocalAppStrings.current
-    // Primary Container used for the main summary card - High emphasis
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large, // Squircle
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
@@ -336,7 +347,7 @@ private fun TodaySummaryCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween // Spread out
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
                     value = totalStrokes.toString(),
@@ -356,13 +367,135 @@ private fun TodaySummaryCard(
                     icon = rememberVectorPainter(Icons.Default.Timer),
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                StatItem(
-                    value = currentHeartRate?.toString() ?: "-",
-                    label = strings.bpm,
-                    icon = rememberVectorPainter(Icons.Default.Favorite),
-                    iconColor = SmartRacketColors.HeartRatePink,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthWellnessCard(
+    currentHeartRate: Int?,
+    currentBloodPressure: BloodPressureReading?,
+    isSamsungHealthConnected: Boolean
+) {
+    val strings = LocalAppStrings.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MonitorHeart,
+                    contentDescription = null,
+                    tint = SmartRacketColors.HeartRatePink,
+                    modifier = Modifier.size(24.dp)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = strings.healthWellness,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (!isSamsungHealthConnected) {
+                // Not connected state
+                Text(
+                    text = strings.noHealthData,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Heart Rate
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = SmartRacketColors.HeartRatePink,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = currentHeartRate?.toString() ?: "-",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (currentHeartRate != null && currentHeartRate >= 180)
+                                MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Text(
+                            text = strings.bpmUnit,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = strings.heartRateLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
+                        )
+                    }
+
+                    // Divider
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(60.dp)
+                            .background(MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f))
+                    )
+
+                    // Blood Pressure
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tonality,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val bpText = if (currentBloodPressure != null)
+                            "${currentBloodPressure.systolic}/${currentBloodPressure.diastolic}"
+                        else "-/-"
+                        Text(
+                            text = bpText,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (currentBloodPressure != null &&
+                                (currentBloodPressure.systolic >= 140 || currentBloodPressure.diastolic >= 90))
+                                MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Text(
+                            text = strings.mmHgUnit,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = strings.bloodPressureLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
+                        )
+                    }
+                }
             }
         }
     }
