@@ -194,3 +194,35 @@
 **Status:** ✅ Complete
 
 ---
+
+## 2026-02-10 — v0.9.1
+**Objective:** Rewrite test BLE sketch for nRF52840 using Bluefruit APIs.
+
+**Actions:**
+- Replaced ArduinoBLE usage with Bluefruit service/characteristic setup.
+- Preserved UUIDs and JSON payload; added write callback for streaming toggle.
+
+**Status:** ✅ Complete
+
+---
+
+## 2026-02-10 — v0.9.2
+**Objective:** Fix BLE JSON truncation by chunking notifications and buffering on Android.
+
+**Actions:**
+- Added newline framing and 20-byte notify chunking in test.ino.
+- Added newline-delimited JSON reassembly buffer in BluetoothManager.
+
+**Status:** ✅ Complete
+
+---
+
+## 2026-02-10 — v0.9.3
+**Objective:** Adjust BLE send interval to normal ping pong cadence.
+
+**Actions:**
+- Updated SEND_INTERVAL_MS to 50 ms (20 Hz) in test.ino.
+
+**Status:** ✅ Complete
+
+---

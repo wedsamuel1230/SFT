@@ -113,6 +113,8 @@ class BluetoothManager @Inject constructor(
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
+    private val jsonBuffer = StringBuilder()
+
     // ============= Permission Checking =============
 
     fun hasBluetoothPermissions(): Boolean {
@@ -445,16 +447,28 @@ class BluetoothManager @Inject constructor(
     private fun parseImuData(data: ByteArray) {
         if (data.isEmpty()) return
 
-        // MCU model output is sent as JSON on the IMU characteristic
-        val payload = kotlin.runCatching { String(data, Charsets.UTF_8).trim() }.getOrNull()
-        if (!payload.isNullOrEmpty() && payload.firstOrNull() == '{') {
-            val parsed = parseModelOutputJson(payload)
-            if (parsed != null) {
-                coroutineScope.launch {
-                    _modelOutputFlow.emit(parsed)
+        // MCU model output is sent as newline-delimited JSON; reassemble fragments.
+        val payload = kotlin.runCatching { String(data, Charsets.UTF_8) }.getOrNull()
+        if (!payload.isNullOrEmpty() && (payload.contains('{') || jsonBuffer.isNotEmpty())) {
+            jsonBuffer.append(payload)
+            var lineEnd = jsonBuffer.indexOf("\n")
+            while (lineEnd >= 0) {
+                val line = jsonBuffer.substring(0, lineEnd).trim()
+                jsonBuffer.delete(0, lineEnd + 1)
+                if (line.startsWith("{")) {
+                    val parsed = parseModelOutputJson(line)
+                    if (parsed != null) {
+                        coroutineScope.launch {
+                            _modelOutputFlow.emit(parsed)
+                        }
+                    }
                 }
-                return
+                lineEnd = jsonBuffer.indexOf("\n")
             }
+            if (jsonBuffer.length > 2048) {
+                jsonBuffer.clear()
+            }
+            return
         }
 
         // Fallback to legacy IMU binary packet parsing
