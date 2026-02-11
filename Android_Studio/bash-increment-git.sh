@@ -2,8 +2,7 @@
 
 clear
 echo "Welcome to git-auto-pusher! This was created by Srujan Deshpande"
-echo "Enter the duration in seconds you want to wait before commits"
-read duration
+duration=600
 
 git config --global credential.helper 'cache --timeout 10800'
 
