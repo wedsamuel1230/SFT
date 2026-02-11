@@ -4,7 +4,7 @@ import androidx.compose.runtime.compositionLocalOf
 import smartracket.com.model.Language
 
 /**
- * Centralized UI strings for the SmartRacket Coach app.
+ * Centralized UI strings for the SmartRacket app.
  *
  * All user-facing text is defined here with translations for:
  * - English
@@ -64,6 +64,10 @@ data class AppStrings(
     val performanceInsightsEmpty: String,
     val improving: String,
     val declining: String,
+    val shareSessionTitle: String,
+    val shareStatsTitle: String,
+    val shareTrendsTitle: String,
+    val shareTagline: String,
     val deleteSessionTitle: String,
     val deleteSessionMessage: String,
     val delete: String,
@@ -260,7 +264,7 @@ object Strings {
         settings = "Settings",
 
         // HomeScreen
-        appName = "SmartRacket Coach",
+        appName = "SmartRacket",
         homeGreetings = listOf(
             "Good to see you on the court",
             "Welcome back—ready for a great session?",
@@ -307,6 +311,10 @@ object Strings {
         performanceInsightsEmpty = "Complete more sessions to get insights.",
         improving = "Improving",
         declining = "Declining",
+        shareSessionTitle = "Session Summary",
+        shareStatsTitle = "Statistics Summary",
+        shareTrendsTitle = "Trends Summary",
+        shareTagline = "Let every swing be guided by data, and every lesson be seen and transformed.",
         deleteSessionTitle = "Delete Session",
         deleteSessionMessage = "Are you sure you want to delete this session? This action cannot be undone.",
         delete = "Delete",
@@ -399,7 +407,7 @@ object Strings {
         termsOfService = "Terms of Service",
         viewTerms = "View our terms of service",
         sendFeedback = "Send Feedback",
-        helpImprove = "Help us improve SmartRacket Coach",
+        helpImprove = "Help us improve SmartRacket",
         dataSection = "Data",
         clearAllData = "Clear All Data",
         clearAllDataSubtitle = "Delete all sessions, highlights, and settings",
@@ -478,7 +486,7 @@ object Strings {
         settings = "设置",
 
         // HomeScreen
-        appName = "SmartRacket Coach",
+        appName = "SmartRacket",
         homeGreetings = listOf(
             "很高兴在球场见到你",
             "欢迎回来，准备好开练了吗？",
@@ -525,6 +533,10 @@ object Strings {
         performanceInsightsEmpty = "完成更多训练以获得分析洞察。",
         improving = "进步中",
         declining = "退步中",
+        shareSessionTitle = "训练概览",
+        shareStatsTitle = "统计概览",
+        shareTrendsTitle = "趋势概览",
+        shareTagline = "让每一次挥拍，都有数据相伴；让每一次学习，都能被看见与改变。",
         deleteSessionTitle = "删除训练",
         deleteSessionMessage = "确定要删除这次训练记录吗？此操作无法撤销。",
         delete = "删除",
@@ -617,7 +629,7 @@ object Strings {
         termsOfService = "服务条款",
         viewTerms = "查看服务条款",
         sendFeedback = "发送反馈",
-        helpImprove = "帮助我们改进 SmartRacket Coach",
+        helpImprove = "帮助我们改进 SmartRacket",
         dataSection = "数据",
         clearAllData = "清除所有数据",
         clearAllDataSubtitle = "删除所有训练记录、精彩回放和设置",
@@ -696,7 +708,7 @@ object Strings {
         settings = "設定",
 
         // HomeScreen
-        appName = "SmartRacket Coach",
+        appName = "SmartRacket",
         homeGreetings = listOf(
             "很高興在球場見到你",
             "歡迎回來，準備好開練了嗎？",
@@ -743,6 +755,10 @@ object Strings {
         performanceInsightsEmpty = "完成更多訓練以取得分析洞察。",
         improving = "進步中",
         declining = "退步中",
+        shareSessionTitle = "訓練概覽",
+        shareStatsTitle = "統計概覽",
+        shareTrendsTitle = "趨勢概覽",
+        shareTagline = "讓每一次揮拍，都有數據相伴；讓每一次學習，都能被看見與改變。",
         deleteSessionTitle = "刪除訓練",
         deleteSessionMessage = "確定要刪除這次訓練紀錄嗎？此操作無法復原。",
         delete = "刪除",
@@ -835,7 +851,7 @@ object Strings {
         termsOfService = "服務條款",
         viewTerms = "查看服務條款",
         sendFeedback = "傳送意見回饋",
-        helpImprove = "協助我們改進 SmartRacket Coach",
+        helpImprove = "協助我們改進 SmartRacket",
         dataSection = "資料",
         clearAllData = "清除所有資料",
         clearAllDataSubtitle = "刪除所有訓練紀錄、精彩回放和設定",

@@ -9,12 +9,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,9 +37,11 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.ui.theme.SmartRacketColors
 import smartracket.com.ui.theme.scoreColor
+import smartracket.com.ui.util.ShareUtils
 import smartracket.com.viewmodel.AnalyticsViewModel
 import smartracket.com.viewmodel.SessionDetailUi
 import smartracket.com.viewmodel.StrokeDistributionItem
+import kotlin.math.roundToInt
 
 /**
  * Analytics Screen - Training history and performance analytics.
@@ -56,7 +67,33 @@ fun AnalyticsScreen(
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val strings = LocalAppStrings.current
+    val context = LocalContext.current
+    val rootView = LocalView.current
     val tabs = listOf(strings.historyTab, strings.statisticsTab, strings.trendsTab)
+
+    val shareChooserTitle = strings.shareLabel
+    val onShareStats: (android.graphics.Rect?) -> Unit = { cropRect ->
+        ShareUtils.shareSnapshot(
+            context = context,
+            view = rootView,
+            shareText = buildStatsShareText(strings, sessions),
+            chooserTitle = shareChooserTitle,
+            cropRect = cropRect,
+            appName = strings.appName,
+            tagline = strings.shareTagline
+        )
+    }
+    val onShareTrends: (android.graphics.Rect?) -> Unit = { cropRect ->
+        ShareUtils.shareSnapshot(
+            context = context,
+            view = rootView,
+            shareText = buildTrendsShareText(strings, scoreTrend),
+            chooserTitle = shareChooserTitle,
+            cropRect = cropRect,
+            appName = strings.appName,
+            tagline = strings.shareTagline
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -86,14 +123,20 @@ fun AnalyticsScreen(
                 isLoading = isLoading,
                 onSessionClick = { viewModel.selectSession(it) },
                 onDateFilterChange = { viewModel.setDateFilter(it) },
-                onDeleteSession = { viewModel.deleteSession(it) }
+                onRefresh = { viewModel.refresh() }
             )
             1 -> StatisticsTab(
                 strokeDistribution = strokeDistribution,
-                sessions = sessions
+                sessions = sessions,
+                isLoading = isLoading,
+                onShare = onShareStats,
+                onRefresh = { viewModel.refresh() }
             )
             2 -> TrendsTab(
-                scoreTrend = scoreTrend
+                scoreTrend = scoreTrend,
+                isLoading = isLoading,
+                onShare = onShareTrends,
+                onRefresh = { viewModel.refresh() }
             )
         }
     }
@@ -112,6 +155,7 @@ fun AnalyticsScreen(
 }
 
 @Composable
+@OptIn(ExperimentalMaterialApi::class)
 private fun SessionHistoryTab(
     sessions: List<SessionDetailUi>,
     selectedSession: SessionDetailUi?,
@@ -119,68 +163,81 @@ private fun SessionHistoryTab(
     isLoading: Boolean,
     onSessionClick: (Long) -> Unit,
     onDateFilterChange: (DateFilterOption) -> Unit,
-    onDeleteSession: (Long) -> Unit
+    onRefresh: () -> Unit
 ) {
     val strings = LocalAppStrings.current
-    Column(
+    val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .pullRefresh(pullRefreshState)
     ) {
-        // Date filter chips
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            items(DateFilterOption.entries.toList()) { option ->
-                val chipLabel = when (option) {
-                    DateFilterOption.ALL -> strings.dateFilterAll
-                    DateFilterOption.WEEK -> strings.dateFilterWeek
-                    DateFilterOption.MONTH -> strings.dateFilterMonth
-                    DateFilterOption.THREE_MONTHS -> strings.dateFilterThreeMonths
-                }
-                FilterChip(
-                    selected = dateFilter == option,
-                    onClick = { onDateFilterChange(option) },
-                    label = {
-                        Text(
-                            text = chipLabel,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+            // Date filter chips
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(DateFilterOption.entries.toList()) { option ->
+                    val chipLabel = when (option) {
+                        DateFilterOption.ALL -> strings.dateFilterAll
+                        DateFilterOption.WEEK -> strings.dateFilterWeek
+                        DateFilterOption.MONTH -> strings.dateFilterMonth
+                        DateFilterOption.THREE_MONTHS -> strings.dateFilterThreeMonths
                     }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (sessions.isEmpty()) {
-            EmptyStateMessage(
-                icon = Icons.Default.History,
-                title = strings.noTrainingSessions,
-                message = strings.startFirstSession
-            )
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(sessions) { session ->
-                    SessionCard(
-                        session = session,
-                        onClick = { onSessionClick(session.sessionId) },
-                        onDelete = { onDeleteSession(session.sessionId) }
+                    FilterChip(
+                        selected = dateFilter == option,
+                        onClick = { onDateFilterChange(option) },
+                        label = {
+                            Text(
+                                text = chipLabel,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (sessions.isEmpty()) {
+                EmptyStateMessage(
+                    icon = Icons.Default.History,
+                    title = strings.noTrainingSessions,
+                    message = strings.startFirstSession
+                )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(sessions) { session ->
+                        SessionCard(
+                            session = session,
+                            onClick = { onSessionClick(session.sessionId) }
+                        )
+                    }
+                }
+            }
         }
+
+        PullRefreshIndicator(
+            refreshing = isLoading,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
@@ -188,15 +245,14 @@ private fun SessionHistoryTab(
 @Composable
 private fun SessionCard(
     session: SessionDetailUi,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
+    onClick: () -> Unit
 ) {
-    val strings = LocalAppStrings.current
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        onClick = {
+            onClick()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -250,149 +306,156 @@ private fun SessionCard(
                     }
                 }
             }
-
-            IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = strings.deleteLabel,
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
         }
-    }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(strings.deleteSessionTitle) },
-            text = { Text(strings.deleteSessionMessage) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text(strings.delete, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(strings.cancel)
-                }
-            }
-        )
     }
 }
 
 @Composable
+@OptIn(ExperimentalMaterialApi::class)
 private fun StatisticsTab(
     strokeDistribution: List<StrokeDistributionItem>,
-    sessions: List<SessionDetailUi>
+    sessions: List<SessionDetailUi>,
+    isLoading: Boolean,
+    onShare: (android.graphics.Rect?) -> Unit,
+    onRefresh: () -> Unit
 ) {
     val strings = LocalAppStrings.current
-    LazyColumn(
+    val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
+    var strokeCardBounds by remember { mutableStateOf<Rect?>(null) }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .pullRefresh(pullRefreshState)
     ) {
-        // Summary stats
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Summary stats
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
                 ) {
-                    Text(
-                        text = strings.overview,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        StatColumn(
-                            value = "${sessions.size}",
-                            label = strings.sessions
-                        )
-                        StatColumn(
-                            value = "${sessions.sumOf { it.totalStrokes }}",
-                            label = strings.totalStrokes
-                        )
-                        StatColumn(
-                            value = if (sessions.isNotEmpty())
-                                String.format("%.1f", sessions.map { it.avgScore }.average())
-                            else "-",
-                            label = strings.avgScore
-                        )
-                    }
-                }
-            }
-        }
-
-        // Stroke distribution chart
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = strings.strokeDistribution,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (strokeDistribution.isNotEmpty()) {
-                        StrokeDistributionChart(
-                            data = strokeDistribution,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(250.dp)
-                        )
-                    } else {
                         Text(
-                            text = strings.noDataAvailable,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            text = strings.overview,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatColumn(
+                                value = "${sessions.size}",
+                                label = strings.sessions
+                            )
+                            StatColumn(
+                                value = "${sessions.sumOf { it.totalStrokes }}",
+                                label = strings.totalStrokes
+                            )
+                            StatColumn(
+                                value = if (sessions.isNotEmpty())
+                                    String.format("%.1f", sessions.map { it.avgScore }.average())
+                                else "-",
+                                label = strings.avgScore
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Stroke distribution chart
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            strokeCardBounds = coordinates.boundsInWindow()
+                        }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = strings.strokeDistribution,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (strokeDistribution.isNotEmpty()) {
+                            StrokeDistributionChart(
+                                data = strokeDistribution,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(250.dp)
+                            )
+                        } else {
+                            Text(
+                                text = strings.noDataAvailable,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = { onShare(strokeCardBounds?.toAndroidRect()) }) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = strings.shareLabel
                         )
                     }
                 }
             }
-        }
 
-        // Stroke type breakdown
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+            // Stroke type breakdown
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = strings.strokeBreakdown,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = strings.strokeBreakdown,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                    strokeDistribution.forEach { item ->
-                        StrokeTypeRow(item = item)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        strokeDistribution.forEach { item ->
+                            StrokeTypeRow(item = item)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 }
             }
         }
+
+        PullRefreshIndicator(
+            refreshing = isLoading,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
@@ -484,95 +547,212 @@ private fun StrokeTypeRow(item: StrokeDistributionItem) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterialApi::class)
 private fun TrendsTab(
-    scoreTrend: List<ScoreTrendPoint>
+    scoreTrend: List<ScoreTrendPoint>,
+    isLoading: Boolean,
+    onShare: (android.graphics.Rect?) -> Unit,
+    onRefresh: () -> Unit
 ) {
     val strings = LocalAppStrings.current
-    LazyColumn(
+    val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
+    var trendCardBounds by remember { mutableStateOf<Rect?>(null) }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .pullRefresh(pullRefreshState)
     ) {
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            trendCardBounds = coordinates.boundsInWindow()
+                        }
                 ) {
-                    Text(
-                        text = strings.scoreTrend,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (scoreTrend.isNotEmpty()) {
-                        ScoreTrendChart(
-                            data = scoreTrend,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(250.dp)
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = strings.scoreTrend,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
                         )
-                    } else {
-                        EmptyStateMessage(
-                            icon = Icons.Default.TrendingUp,
-                            title = strings.notEnoughData,
-                            message = strings.completeMoreSessions
-                        )
-                    }
-                }
-            }
-        }
 
-        // Performance insights
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = strings.performanceInsights,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (scoreTrend.size >= 2) {
-                        val trend = scoreTrend.last().score - scoreTrend.first().score
-                        val trendIcon = if (trend >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown
-                        val trendColor = if (trend >= 0) SmartRacketColors.ScoreExcellent else SmartRacketColors.ScorePoor
-                        val trendText = if (trend >= 0) strings.improving else strings.declining
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = trendIcon,
-                                contentDescription = null,
-                                tint = trendColor
+                        if (scoreTrend.isNotEmpty()) {
+                            ScoreTrendChart(
+                                data = scoreTrend,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(250.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Your performance is $trendText (${if (trend >= 0) "+" else ""}${String.format("%.1f", trend)} points)",
-                                style = MaterialTheme.typography.bodyMedium
+                        } else {
+                            EmptyStateMessage(
+                                icon = Icons.Default.TrendingUp,
+                                title = strings.notEnoughData,
+                                message = strings.completeMoreSessions
                             )
                         }
-                    } else {
-                        Text(
-                            text = strings.performanceInsightsEmpty,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = { onShare(trendCardBounds?.toAndroidRect()) }) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = strings.shareLabel
                         )
                     }
                 }
             }
+
+            // Performance insights
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = strings.performanceInsights,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (scoreTrend.size >= 2) {
+                            val trend = scoreTrend.last().score - scoreTrend.first().score
+                            val trendIcon = if (trend >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown
+                            val trendColor = if (trend >= 0) SmartRacketColors.ScoreExcellent else SmartRacketColors.ScorePoor
+                            val trendText = if (trend >= 0) strings.improving else strings.declining
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = trendIcon,
+                                    contentDescription = null,
+                                    tint = trendColor
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Your performance is $trendText (${if (trend >= 0) "+" else ""}${String.format("%.1f", trend)} points)",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = strings.performanceInsightsEmpty,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+            }
         }
+
+        PullRefreshIndicator(
+            refreshing = isLoading,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+    }
+}
+
+private fun Rect.toAndroidRect(): android.graphics.Rect {
+    return android.graphics.Rect(
+        left.roundToInt(),
+        top.roundToInt(),
+        right.roundToInt(),
+        bottom.roundToInt()
+    )
+}
+
+private fun buildSessionShareText(strings: smartracket.com.ui.i18n.AppStrings, session: SessionDetailUi): String {
+    return buildString {
+        append(strings.appName)
+        append("\n")
+        append(strings.shareTagline)
+        append("\n\n")
+        append(strings.shareSessionTitle)
+        append("\n\n")
+        append("${strings.historyTab}: ${session.dateFormatted}\n")
+        append("${strings.avgScore}: ${String.format("%.1f", session.avgScore)}\n")
+        append("${strings.totalStrokes}: ${session.totalStrokes}\n")
+        append("${strings.duration}: ${session.durationFormatted}")
+        session.avgHeartRate?.let { hr ->
+            append("\n${strings.bpm}: $hr")
+        }
+        append("\n\n#SmartRacket #TableTennis")
+    }
+}
+
+private fun buildStatsShareText(
+    strings: smartracket.com.ui.i18n.AppStrings,
+    sessions: List<SessionDetailUi>
+): String {
+    val avgScore = if (sessions.isNotEmpty()) {
+        String.format("%.1f", sessions.map { it.avgScore }.average())
+    } else {
+        "-"
+    }
+
+    return buildString {
+        append(strings.appName)
+        append("\n")
+        append(strings.shareTagline)
+        append("\n\n")
+        append(strings.shareStatsTitle)
+        append("\n\n")
+        append("${strings.sessions}: ${sessions.size}\n")
+        append("${strings.totalStrokes}: ${sessions.sumOf { it.totalStrokes }}\n")
+        append("${strings.avgScore}: $avgScore")
+        append("\n\n#SmartRacket #TableTennis")
+    }
+}
+
+private fun buildTrendsShareText(
+    strings: smartracket.com.ui.i18n.AppStrings,
+    scoreTrend: List<ScoreTrendPoint>
+): String {
+    return buildString {
+        append(strings.appName)
+        append("\n")
+        append(strings.shareTagline)
+        append("\n\n")
+        append(strings.shareTrendsTitle)
+        append("\n\n")
+
+        if (scoreTrend.size >= 2) {
+            val first = scoreTrend.first().score
+            val last = scoreTrend.last().score
+            val delta = last - first
+            val trendLabel = if (delta >= 0) strings.improving else strings.declining
+
+            append("${strings.scoreTrend}: ${String.format("%.1f", last)}\n")
+            append("${strings.performanceInsights}: $trendLabel (${if (delta >= 0) "+" else ""}${String.format("%.1f", delta)})")
+        } else {
+            append(strings.notEnoughData)
+        }
+
+        append("\n\n#SmartRacket #TableTennis")
     }
 }
 
@@ -638,16 +818,50 @@ private fun SessionDetailSheet(
     onDismiss: () -> Unit
 ) {
     val strings = LocalAppStrings.current
+    val context = LocalContext.current
+    val sheetView = LocalView.current
+    var sheetBounds by remember { mutableStateOf<Rect?>(null) }
+    val cropPaddingPx = remember(context) {
+        (16 * context.resources.displayMetrics.density).toInt()
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(24.dp)
+            .onGloballyPositioned { coordinates ->
+                sheetBounds = coordinates.boundsInWindow()
+            }
     ) {
-        Text(
-            text = session.dateFormatted,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = session.dateFormatted,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = {
+                    ShareUtils.shareSnapshot(
+                        context = context,
+                        view = sheetView,
+                        shareText = buildSessionShareText(strings, session),
+                        chooserTitle = strings.shareLabel,
+                        cropRect = sheetBounds?.toAndroidRect(),
+                        cropPaddingPx = cropPaddingPx,
+                        appName = strings.appName,
+                        tagline = strings.shareTagline
+                    )
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = strings.shareLabel
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

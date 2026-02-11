@@ -107,7 +107,7 @@ fun HighlightsScreen(
                 highlights = highlights,
                 onHighlightClick = { viewModel.selectHighlight(it) },
                 onDeleteClick = { viewModel.deleteHighlight(it) },
-                onShareClick = { viewModel.shareHighlight(it) }
+                onShareClick = { viewModel.shareHighlight(it, strings.shareTagline) }
             )
         }
     }
@@ -120,7 +120,7 @@ fun HighlightsScreen(
             HighlightDetailSheet(
                 highlight = highlight,
                 onDismiss = { viewModel.clearSelectedHighlight() },
-                onShare = { viewModel.shareHighlight(highlight.clipId) },
+                onShare = { viewModel.shareHighlight(highlight.clipId, strings.shareTagline) },
                 onDelete = {
                     viewModel.deleteHighlight(highlight.clipId)
                     viewModel.clearSelectedHighlight()

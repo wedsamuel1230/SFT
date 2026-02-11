@@ -3,6 +3,7 @@ package smartracket.com.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import smartracket.com.model.Stroke
@@ -56,6 +57,8 @@ class AnalyticsViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
         loadData()
 
@@ -71,7 +74,8 @@ class AnalyticsViewModel @Inject constructor(
      * Load sessions based on current filter.
      */
     private fun loadData() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
 
             val (startDate, endDate) = getDateRange(_dateFilter.value)
@@ -91,6 +95,13 @@ class AnalyticsViewModel @Inject constructor(
                 _isLoading.value = false
             }
         }
+    }
+
+    /**
+     * Refresh analytics data using the current filter.
+     */
+    fun refresh() {
+        loadData()
     }
 
     /**

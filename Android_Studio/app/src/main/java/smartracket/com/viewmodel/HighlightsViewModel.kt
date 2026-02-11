@@ -110,11 +110,16 @@ class HighlightsViewModel @Inject constructor(
     /**
      * Share a highlight.
      */
-    fun shareHighlight(clipId: Long) {
+    fun shareHighlight(clipId: Long, tagline: String = "") {
         val highlight = _allHighlights.value.find { it.clipId == clipId } ?: return
 
         val shareText = buildString {
-            append("🏓 SmartRacket Highlight!\n\n")
+            append("🏓 SmartRacket Highlight!\n")
+            if (tagline.isNotBlank()) {
+                append(tagline)
+                append("\n")
+            }
+            append("\n")
             append("Stroke: ${highlight.strokeType}\n")
             append("Score: ${highlight.score}/10\n")
             append("Date: ${highlight.dateFormatted}\n")
