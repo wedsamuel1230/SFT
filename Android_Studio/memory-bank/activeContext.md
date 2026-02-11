@@ -1,7 +1,8 @@
 # Active Context
 
 ## Current Focus
-All milestones (1–5) COMPLETE. MCU migration applied. UI Polished for Samsung One UI.
+All milestones (1–5) COMPLETE. MCU migration applied. UI Polished for Samsung One UI. Highlights mode fully removed.
+- **Highlights Removal (v1.0.0):** Deleted HighlightsScreen.kt, HighlightsViewModel.kt, HighlightClip.kt, HighlightRepository.kt, HighlightClipDao.kt. Removed all highlight references from MainActivity (nav/bottom bar), TrainingViewModel (BLE trigger, buffering, save), TrainingScreen (save button/state), AppModule (DI provider), Strings.kt (i18n strings), HomeScreen (quick action), FirebaseSyncRepository (sync subcollection), BluetoothRepository (trigger flow), SmartRacketDatabase (entity/DAO), Converters.kt (type converters). Bottom nav reduced from 5 to 4 tabs (Home, Training, Analytics, Settings).
 - **MCU Migration:** Stroke classification moved to MCU (Edge Impulse, 3 classes: forehand/backhand/drive); `McuModelOutput` model computes `score` from `conf`; `BluetoothRepository` forwards MCU model outputs via BLE JSON (`ts/stroke/conf/peak`); `TrainingRepository.recordStrokeFromMcu()` records strokes; `StrokeClassifier` replaced with deprecated stub.
 - **BLE Protocol:** test.ino UUIDs aligned with `BleDeviceProfile.DEFAULT`; JSON payload sends `ts/stroke/conf/peak` (no `score` — calculated on Android).
 - **StrokeType Enum:** Reduced to `FOREHAND`, `BACKHAND`, `DRIVE`, `UNKNOWN` for prototype.
@@ -22,8 +23,8 @@ All milestones (1–5) COMPLETE. MCU migration applied. UI Polished for Samsung 
 ## Notes
 - `TrainingScreen.kt`: `ActiveTrainingContent` rewritten to use weighted Column split. Top=Stats/Score, Bottom=List/Controls. Added missing `recentStrokes` list.
 - One UI Layout Rules: Top 30-40% for viewing, Bottom 60-70% for interaction.
-- Firestore schema: users/{uid}/sessions/{sessionId} + /strokes + /highlights subcollections.
-- Sync is session-granular: completed sessions with isSynced=false get pushed with all strokes/highlights.
+- Firestore schema: users/{uid}/sessions/{sessionId} + /strokes subcollections.
+- Sync is session-granular: completed sessions with isSynced=false get pushed with all strokes.
 - Strokes batched in chunks of 400 (Firestore batch limit is 500).
 - Firebase unavailability handled gracefully (placeholder google-services.json won't crash).
 - WearableListenerService handles /smartracket/sync path → triggers immediate sync.
