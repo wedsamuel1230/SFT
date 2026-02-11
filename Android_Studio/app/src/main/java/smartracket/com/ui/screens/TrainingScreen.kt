@@ -7,7 +7,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -60,6 +60,7 @@ fun TrainingScreen(
     val averageScore by viewModel.averageScore.collectAsState()
     val lastStroke by viewModel.lastStroke.collectAsState()
     val recentStrokes by viewModel.recentStrokes.collectAsState()
+    val strokeAnimationTick by viewModel.strokeAnimationTick.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val currentHeartRate by viewModel.currentHeartRate.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -616,7 +617,8 @@ private fun ActiveTrainingContent(
             // Large Score Display
             AnimatedScoreDisplay(
                 score = currentScore,
-                strokeType = lastStroke?.strokeType
+                strokeType = lastStroke?.strokeType,
+                animationTick = strokeAnimationTick
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -672,8 +674,12 @@ private fun ActiveTrainingContent(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(recentStrokes) { stroke ->
-                        RecentStrokeItem(stroke)
+                    itemsIndexed(recentStrokes) { index, stroke ->
+                        RecentStrokeItem(
+                            stroke = stroke,
+                            animationTick = strokeAnimationTick,
+                            isLatest = index == 0
+                        )
                     }
                 }
 
@@ -753,11 +759,12 @@ private fun StatColumn(value: String, label: String) {
 @Composable
 private fun AnimatedScoreDisplay(
     score: Int,
-    strokeType: String?
+    strokeType: String?,
+    animationTick: Long
 ) {
     val animatedScale = remember { Animatable(1f) }
 
-    LaunchedEffect(score) {
+    LaunchedEffect(animationTick) {
         if (score > 0) {
             animatedScale.animateTo(
                 targetValue = 1.2f,
@@ -805,7 +812,26 @@ private fun AnimatedScoreDisplay(
 }
 
 @Composable
-private fun RecentStrokeItem(stroke: Stroke) {
+private fun RecentStrokeItem(
+    stroke: Stroke,
+    animationTick: Long,
+    isLatest: Boolean
+) {
+    val animatedScale = remember { Animatable(1f) }
+
+    LaunchedEffect(animationTick) {
+        if (isLatest) {
+            animatedScale.animateTo(
+                targetValue = 1.15f,
+                animationSpec = tween(80)
+            )
+            animatedScale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(160)
+            )
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -819,6 +845,7 @@ private fun RecentStrokeItem(stroke: Stroke) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
+                    .scale(animatedScale.value)
                     .clip(CircleShape)
                     .background(scoreColor(stroke.score).copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center

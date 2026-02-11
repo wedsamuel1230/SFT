@@ -53,6 +53,9 @@ class TrainingViewModel @Inject constructor(
     
     private val _strokeCount = MutableStateFlow(0)
     val strokeCount: StateFlow<Int> = _strokeCount.asStateFlow()
+
+    private val _strokeAnimationTick = MutableStateFlow(0L)
+    val strokeAnimationTick: StateFlow<Long> = _strokeAnimationTick.asStateFlow()
     
     private val _averageScore = MutableStateFlow(0f)
     val averageScore: StateFlow<Float> = _averageScore.asStateFlow()
@@ -235,6 +238,7 @@ class TrainingViewModel @Inject constructor(
         _currentSession.value = null
         _elapsedTime.value = 0
         _strokeCount.value = 0
+        _strokeAnimationTick.value = 0L
         _averageScore.value = 0f
         _recentStrokes.value = emptyList()
     }
@@ -267,6 +271,7 @@ class TrainingViewModel @Inject constructor(
             _currentScore.value = stroke.score
             _currentFeedback.value = stroke.feedback
             _strokeCount.value = _strokeCount.value + 1
+            _strokeAnimationTick.value = _strokeAnimationTick.value + 1
             
             // Update average score
             val totalScore = _averageScore.value * (_strokeCount.value - 1) + stroke.score
