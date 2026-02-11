@@ -7,7 +7,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,7 +34,6 @@ import smartracket.com.model.*
 import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.ui.theme.SmartRacketColors
 import smartracket.com.ui.theme.scoreColor
-import smartracket.com.viewmodel.HighlightSaveState
 import smartracket.com.viewmodel.TrainingViewModel
 
 /**
@@ -45,7 +44,6 @@ import smartracket.com.viewmodel.TrainingViewModel
  * - Live feedback tips
  * - Elapsed time and stroke count
  * - Heart rate indicator
- * - Highlight save button
  * - Recent strokes list
  */
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
@@ -62,9 +60,9 @@ fun TrainingScreen(
     val averageScore by viewModel.averageScore.collectAsState()
     val lastStroke by viewModel.lastStroke.collectAsState()
     val recentStrokes by viewModel.recentStrokes.collectAsState()
+    val strokeAnimationTick by viewModel.strokeAnimationTick.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val currentHeartRate by viewModel.currentHeartRate.collectAsState()
-    val highlightSaveState by viewModel.highlightSaveState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
     val healthAlert by viewModel.showHealthAlert.collectAsState()
@@ -246,12 +244,11 @@ fun TrainingScreen(
                             averageScore = averageScore,
                             lastStroke = lastStroke,
                             currentHeartRate = currentHeartRate,
-                            highlightSaveState = highlightSaveState,
                             recentStrokes = recentStrokes,
+                            strokeAnimationTick = strokeAnimationTick,
                             onPause = { viewModel.pauseSession() },
                             onResume = { viewModel.resumeSession() },
-                            onStop = { viewModel.stopSession() },
-                            onSaveHighlight = { viewModel.saveHighlightManually() }
+                            onStop = { viewModel.stopSession() }
                         )
                     }
                     SessionState.STOPPING -> {
@@ -433,6 +430,7 @@ private fun DeviceListItem(
             Icon(
                 painter = deviceIcon,
                 contentDescription = null,
+                modifier = if (device.isSmartRacketDevice) Modifier.size(16.dp) else Modifier,
                 tint = if (device.isSmartRacketDevice)
                     MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -559,12 +557,11 @@ private fun ActiveTrainingContent(
     averageScore: Float,
     lastStroke: Stroke?,
     currentHeartRate: Int?,
-    highlightSaveState: HighlightSaveState,
     recentStrokes: List<Stroke>,
+    strokeAnimationTick: Long,
     onPause: () -> Unit,
     onResume: () -> Unit,
-    onStop: () -> Unit,
-    onSaveHighlight: () -> Unit
+    onStop: () -> Unit
 ) {
     val strings = LocalAppStrings.current
 
@@ -622,7 +619,8 @@ private fun ActiveTrainingContent(
             // Large Score Display
             AnimatedScoreDisplay(
                 score = currentScore,
-                strokeType = lastStroke?.strokeType
+                strokeType = lastStroke?.strokeType,
+                animationTick = strokeAnimationTick
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -678,8 +676,12 @@ private fun ActiveTrainingContent(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(recentStrokes) { stroke ->
-                        RecentStrokeItem(stroke)
+                    itemsIndexed(recentStrokes) { index, stroke ->
+                        RecentStrokeItem(
+                            stroke = stroke,
+                            animationTick = strokeAnimationTick,
+                            isLatest = index == 0
+                        )
                     }
                 }
 
@@ -689,16 +691,6 @@ private fun ActiveTrainingContent(
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
                 ) {
-                    // Highlight Save Button (Contextual)
-                    if (isConnected && !isPaused && lastStroke != null) {
-                        HighlightSaveButton(
-                            state = highlightSaveState,
-                            enabled = true,
-                            onClick = onSaveHighlight
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
                     // Main Control Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -769,11 +761,12 @@ private fun StatColumn(value: String, label: String) {
 @Composable
 private fun AnimatedScoreDisplay(
     score: Int,
-    strokeType: String?
+    strokeType: String?,
+    animationTick: Long
 ) {
     val animatedScale = remember { Animatable(1f) }
 
-    LaunchedEffect(score) {
+    LaunchedEffect(animationTick) {
         if (score > 0) {
             animatedScale.animateTo(
                 targetValue = 1.2f,
@@ -821,48 +814,26 @@ private fun AnimatedScoreDisplay(
 }
 
 @Composable
-private fun HighlightSaveButton(
-    state: HighlightSaveState,
-    enabled: Boolean,
-    onClick: () -> Unit
+private fun RecentStrokeItem(
+    stroke: Stroke,
+    animationTick: Long,
+    isLatest: Boolean
 ) {
-    val strings = LocalAppStrings.current
-    val buttonColor = when (state) {
-        is HighlightSaveState.Saved -> SmartRacketColors.StatusConnected
-        is HighlightSaveState.Error -> SmartRacketColors.StatusError
-        else -> MaterialTheme.colorScheme.secondary
+    val animatedScale = remember { Animatable(1f) }
+
+    LaunchedEffect(animationTick) {
+        if (isLatest) {
+            animatedScale.animateTo(
+                targetValue = 1.15f,
+                animationSpec = tween(80)
+            )
+            animatedScale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(160)
+            )
+        }
     }
 
-    val buttonText = when (state) {
-        HighlightSaveState.Idle -> strings.saveHighlight
-        HighlightSaveState.Saving -> strings.saving
-        is HighlightSaveState.Saved -> strings.saved
-        is HighlightSaveState.Error -> strings.failed
-    }
-
-    val buttonIcon = when (state) {
-        HighlightSaveState.Idle -> Icons.Default.Stars
-        HighlightSaveState.Saving -> Icons.Default.Sync
-        is HighlightSaveState.Saved -> Icons.Default.Check
-        is HighlightSaveState.Error -> Icons.Default.Error
-    }
-
-    FilledTonalButton(
-        onClick = onClick,
-        enabled = enabled && state is HighlightSaveState.Idle,
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = buttonColor.copy(alpha = 0.2f),
-            contentColor = buttonColor
-        )
-    ) {
-        Icon(buttonIcon, contentDescription = null)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(buttonText)
-    }
-}
-
-@Composable
-private fun RecentStrokeItem(stroke: Stroke) {
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -876,6 +847,7 @@ private fun RecentStrokeItem(stroke: Stroke) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
+                    .scale(animatedScale.value)
                     .clip(CircleShape)
                     .background(scoreColor(stroke.score).copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center

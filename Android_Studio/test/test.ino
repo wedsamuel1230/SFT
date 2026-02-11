@@ -12,10 +12,13 @@ const uint8_t CTRL_CHAR_UUID[16] = {0xa9, 0x26, 0x1b, 0x36, 0x07, 0xea, 0xf5, 0x
 const uint32_t SAMPLE_INTERVAL_MS = 20;  // 50 Hz IMU polling
 const uint32_t MOTION_COOLDOWN_MS = 500;
 const size_t NOTIFY_CHUNK_SIZE = 20;
+const size_t MAX_NOTIFY_LEN = 100;
 
 // Big motion thresholds (tune as needed)
-const float ACCEL_DELTA_G = 1.8f;      // delta from 1g
-const float GYRO_DPS_THRESHOLD = 250.0f;
+const float ACCEL_DELTA_G = 2.2f;      // edited from 1.8 to 2.2 to reduce false positives from normal hand movements
+const float GYRO_DPS_THRESHOLD = 250.0f; // degrees per second
+
+const uint32_t backtime = 800; // time needed for human to move racket back into position for next stroke — adjust as needed
 
 BLEService modelService(SERVICE_UUID);
 
@@ -122,7 +125,7 @@ void loop() {
 
   const bool bigMotion = (accelDelta > ACCEL_DELTA_G) || (gyroMag > GYRO_DPS_THRESHOLD);
 
-  if (!bigMotion && accelDelta < (ACCEL_DELTA_G * 0.6f)) {
+  if (!bigMotion && accelDelta < (ACCEL_DELTA_G * 0.45f)) { // re-arm when racket is relatively still
     motionArmed = true;
   }
 
@@ -144,12 +147,17 @@ void loop() {
              ts, stroke, conf, peak);
 
     const size_t payloadLen = strlen(payload);
-    for (size_t offset = 0; offset < payloadLen; offset += NOTIFY_CHUNK_SIZE) {
-      const size_t chunkLen = min(NOTIFY_CHUNK_SIZE, payloadLen - offset);
-      if (!dataChar.notify((const uint8_t*)(payload + offset), chunkLen)) {
-        break;
+    if (payloadLen <= MAX_NOTIFY_LEN) {
+      dataChar.notify((const uint8_t*)payload, payloadLen);
+    } else {
+      for (size_t offset = 0; offset < payloadLen; offset += NOTIFY_CHUNK_SIZE) {
+        const size_t chunkLen = min(NOTIFY_CHUNK_SIZE, payloadLen - offset);
+        if (!dataChar.notify((const uint8_t*)(payload + offset), chunkLen)) {
+          break;
+        }
       }
     }
     Serial.print(payload);
+    delay(backtime); // wait before allowing next motion to be sent, giving time for human to move racket back into position for next stroke
   }
 }

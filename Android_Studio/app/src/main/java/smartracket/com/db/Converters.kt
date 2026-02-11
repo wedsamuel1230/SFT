@@ -4,7 +4,6 @@ import androidx.room.TypeConverter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import smartracket.com.model.HeartRateReading
-import smartracket.com.model.HighlightMetadata
 import smartracket.com.model.MotionData
 
 /**
@@ -46,22 +45,6 @@ class Converters {
             gson.fromJson(value, MotionData::class.java) ?: MotionData.empty()
         } catch (e: Exception) {
             MotionData.empty()
-        }
-    }
-
-    // ============= HighlightMetadata =============
-
-    @TypeConverter
-    fun fromHighlightMetadata(value: HighlightMetadata): String {
-        return gson.toJson(value)
-    }
-
-    @TypeConverter
-    fun toHighlightMetadata(value: String): HighlightMetadata {
-        return try {
-            gson.fromJson(value, HighlightMetadata::class.java)
-        } catch (e: Exception) {
-            HighlightMetadata(score = 0, strokeType = "unknown", confidence = 0f)
         }
     }
 

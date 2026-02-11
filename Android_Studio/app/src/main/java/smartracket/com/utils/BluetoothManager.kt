@@ -51,6 +51,7 @@ class BluetoothManager @Inject constructor(
         private const val MAX_RECONNECT_ATTEMPTS = 5
 
         private const val DESIRED_MTU = 517
+        private const val JSON_BUFFER_MAX = 1024
     }
 
     /**
@@ -107,13 +108,13 @@ class BluetoothManager @Inject constructor(
     )
     val modelOutputFlow: SharedFlow<McuModelOutput> = _modelOutputFlow.asSharedFlow()
 
+    private val jsonBuffer = StringBuilder()
+
     private val _batteryLevel = MutableStateFlow<Int?>(null)
     val batteryLevel: StateFlow<Int?> = _batteryLevel.asStateFlow()
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
-
-    private val jsonBuffer = StringBuilder()
 
     // ============= Permission Checking =============
 
@@ -447,28 +448,45 @@ class BluetoothManager @Inject constructor(
     private fun parseImuData(data: ByteArray) {
         if (data.isEmpty()) return
 
-        // MCU model output is sent as newline-delimited JSON; reassemble fragments.
+        // MCU model output is sent as JSON on the IMU characteristic
         val payload = kotlin.runCatching { String(data, Charsets.UTF_8) }.getOrNull()
-        if (!payload.isNullOrEmpty() && (payload.contains('{') || jsonBuffer.isNotEmpty())) {
-            jsonBuffer.append(payload)
-            var lineEnd = jsonBuffer.indexOf("\n")
-            while (lineEnd >= 0) {
-                val line = jsonBuffer.substring(0, lineEnd).trim()
-                jsonBuffer.delete(0, lineEnd + 1)
-                if (line.startsWith("{")) {
-                    val parsed = parseModelOutputJson(line)
-                    if (parsed != null) {
-                        coroutineScope.launch {
-                            _modelOutputFlow.emit(parsed)
-                        }
+        if (!payload.isNullOrEmpty()) {
+            val trimmed = payload.trim()
+            val startsJson = trimmed.startsWith("{")
+
+            if (startsJson && trimmed.endsWith("}")) {
+                val parsed = parseModelOutputJson(trimmed)
+                if (parsed != null) {
+                    coroutineScope.launch {
+                        _modelOutputFlow.emit(parsed)
                     }
                 }
-                lineEnd = jsonBuffer.indexOf("\n")
+                return
             }
-            if (jsonBuffer.length > 2048) {
-                jsonBuffer.clear()
+
+            if (startsJson || jsonBuffer.isNotEmpty()) {
+                jsonBuffer.append(payload)
+                var newlineIndex = jsonBuffer.indexOf("\n")
+                while (newlineIndex >= 0) {
+                    val line = jsonBuffer.substring(0, newlineIndex).trim()
+                    jsonBuffer.delete(0, newlineIndex + 1)
+                    if (line.startsWith("{")) {
+                        val parsed = parseModelOutputJson(line)
+                        if (parsed != null) {
+                            coroutineScope.launch {
+                                _modelOutputFlow.emit(parsed)
+                            }
+                        }
+                    }
+                    newlineIndex = jsonBuffer.indexOf("\n")
+                }
+
+                if (jsonBuffer.length > JSON_BUFFER_MAX) {
+                    Log.w(TAG, "Discarding oversized JSON buffer (${jsonBuffer.length} bytes)")
+                    jsonBuffer.clear()
+                }
+                return
             }
-            return
         }
 
         // Fallback to legacy IMU binary packet parsing

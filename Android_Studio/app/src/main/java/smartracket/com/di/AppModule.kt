@@ -10,7 +10,6 @@ import smartracket.com.db.SmartRacketDatabase
 import smartracket.com.repository.BluetoothRepository
 import smartracket.com.repository.FirebaseSyncRepository
 import smartracket.com.repository.HealthRepository
-import smartracket.com.repository.HighlightRepository
 import smartracket.com.repository.TrainingRepository
 import smartracket.com.sync.SyncManager
 import smartracket.com.utils.BluetoothManager
@@ -62,15 +61,6 @@ object AppModule {
         database: SmartRacketDatabase
     ): TrainingRepository {
         return TrainingRepository(database)
-    }
-
-    /**
-     * Provides the HighlightRepository instance.
-     */
-    @Provides
-    @Singleton
-    fun provideHighlightRepository(database: SmartRacketDatabase): HighlightRepository {
-        return HighlightRepository(database)
     }
 
     /**

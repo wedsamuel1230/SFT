@@ -195,33 +195,15 @@
 
 ---
 
-## 2026-02-10 — v0.9.1
-**Objective:** Rewrite test BLE sketch for nRF52840 using Bluefruit APIs.
+## 2026-02-10 — v1.0.0
+**Objective:** Remove highlights mode completely from the app.
 
 **Actions:**
-- Replaced ArduinoBLE usage with Bluefruit service/characteristic setup.
-- Preserved UUIDs and JSON payload; added write callback for streaming toggle.
-
-**Status:** ✅ Complete
-
----
-
-## 2026-02-10 — v0.9.2
-**Objective:** Fix BLE JSON truncation by chunking notifications and buffering on Android.
-
-**Actions:**
-- Added newline framing and 20-byte notify chunking in test.ino.
-- Added newline-delimited JSON reassembly buffer in BluetoothManager.
-
-**Status:** ✅ Complete
-
----
-
-## 2026-02-10 — v0.9.3
-**Objective:** Adjust BLE send interval to normal ping pong cadence.
-
-**Actions:**
-- Updated SEND_INTERVAL_MS to 50 ms (20 Hz) in test.ino.
+- Deleted 5 files: HighlightsScreen.kt, HighlightsViewModel.kt, HighlightClip.kt, HighlightRepository.kt, HighlightClipDao.kt.
+- Edited 10 files to remove all highlight references: MainActivity.kt (nav bar, sealed class, NavHost route), TrainingViewModel.kt (repository, buffer, save, BLE trigger), TrainingScreen.kt (save button, state), AppModule.kt (DI provider), Strings.kt (i18n strings — 3 languages), HomeScreen.kt (quick action button), FirebaseSyncRepository.kt (sync subcollection, mapping), BluetoothRepository.kt (trigger flow), SmartRacketDatabase.kt (entity, DAO), Converters.kt (type converters).
+- Fixed collateral build error: restored accidentally removed `shareLabel` field in Strings.kt (EN/ZH-CN/ZH-TW).
+- Bottom navigation reduced from 5 tabs to 4 (Home, Training, Analytics, Settings).
+- Build verified: assembleDebug BUILD SUCCESSFUL.
 
 **Status:** ✅ Complete
 

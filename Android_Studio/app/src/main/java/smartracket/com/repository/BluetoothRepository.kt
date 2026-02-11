@@ -49,16 +49,6 @@ class BluetoothRepository @Inject constructor(
     val modelOutputs: SharedFlow<McuModelOutput> = _modelOutputs.asSharedFlow()
 
     /**
-     * Highlight trigger from MCU button press.
-     * Emits Unit when the physical button on the paddle is pressed.
-     */
-    private val _highlightTrigger = MutableSharedFlow<Unit>(
-        replay = 0,
-        extraBufferCapacity = 1
-    )
-    val highlightTrigger: SharedFlow<Unit> = _highlightTrigger.asSharedFlow()
-
-    /**
      * Connection state from BluetoothManager.
      */
     val connectionState: StateFlow<BluetoothConnectionState> = bluetoothManager.connectionState
@@ -239,7 +229,7 @@ class BluetoothRepository @Inject constructor(
     }
 
     /**
-     * Get recent motion data for highlight capture.
+     * Get recent motion data.
      *
      * @param durationMs Duration of data to retrieve in milliseconds
      */
@@ -247,16 +237,6 @@ class BluetoothRepository @Inject constructor(
         synchronized(bufferLock) {
             val cutoffTime = System.currentTimeMillis() - durationMs
             return imuBuffer.filter { it.timestamp >= cutoffTime }.toList()
-        }
-    }
-
-    /**
-     * Called when a highlight trigger button press is detected from the MCU.
-     * This can be invoked from BluetoothManager's characteristic change callback.
-     */
-    fun onHighlightButtonPressed() {
-        scope.launch {
-            _highlightTrigger.emit(Unit)
         }
     }
 
