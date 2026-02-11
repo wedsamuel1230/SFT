@@ -31,6 +31,20 @@ LSM6DS3 imu(I2C_MODE, 0x6A);
 
 bool motionArmed = true;
 
+static void checkSerialReset() {
+  if (!Serial.available()) {
+    return;
+  }
+
+  const int ch = Serial.read();
+  if (ch == 'r' || ch == 'R') {
+    Serial.println("Software reset requested");
+    Serial.flush();
+    delay(50);
+    NVIC_SystemReset();
+  }
+}
+
 void onCtrlWrite(uint16_t connHandle, BLECharacteristic* characteristic, uint8_t* data, uint16_t len) {
   (void)connHandle;
   (void)characteristic;
@@ -84,6 +98,7 @@ void setup() {
 }
 
 void loop() {
+  checkSerialReset();
   if (!streamingEnabled || !Bluefruit.connected()) {
     return;
   }
