@@ -195,7 +195,21 @@
 
 ---
 
-## 2026-02-10 — v1.0.0
+## 2026-02-12 — v1.3.0
+**Objective:** Refactor plan.prompt.md for Plan agent pseudo code capability.
+
+**Actions:**
+- Rewrote `.github/prompts/plan.prompt.md` from 367 lines → ~200 lines.
+- Added Phase 4: Pseudo Code & Interface Design — the key new capability.
+- Pseudo code rules: language-agnostic, ≤30 lines/block, annotated with WHERE/WHY, reference file:line.
+- Removed prohibition on pseudo code; kept prohibition on production/compilable code.
+- Consolidated 5 planning phases into 6 streamlined phases (added pseudo code, removed redundant checkpoints).
+- Trimmed glossary, merged skills/subagent sections, simplified output constraints.
+- Added `memory-bank/plans/*.md` to allowlist for plan document storage.
+
+**Status:** ✅ Complete
+
+---## 2026-02-10 — v1.0.0
 **Objective:** Remove highlights mode completely from the app.
 
 **Actions:**

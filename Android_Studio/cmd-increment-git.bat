@@ -3,7 +3,7 @@
 TITLE Git Auto Pusher
 
 cls
-git checkout "auto commit" 2>nul || git checkout -b "auto commit"
+git checkout "auto-commit" 2>nul || git checkout -b "auto-commit"
 :DoGit
 
 git add .

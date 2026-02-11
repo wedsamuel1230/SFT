@@ -19,6 +19,7 @@ All milestones (1–5) COMPLETE. MCU migration applied. UI Polished for Samsung 
 - Samsung Health SDK actual dependency not yet added to `build.gradle.kts` (placeholder integration).
 - Galaxy Watch companion app (Wear OS) not yet built — Firestore data ready for it.
 - Git not available in terminal — push changes to GitHub via Android Studio VCS or install Git.
+- `plan.prompt.md` refactored — now supports pseudo code output in Plan agent mode.
 
 ## Notes
 - `TrainingScreen.kt`: `ActiveTrainingContent` rewritten to use weighted Column split. Top=Stats/Score, Bottom=List/Controls. Added missing `recentStrokes` list.

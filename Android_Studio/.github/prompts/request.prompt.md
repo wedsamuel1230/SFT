@@ -1,16 +1,8 @@
 ---
 agent: 'Agent'
-description: 'Universal principal-engineer prompt for autonomous request handling with mandatory subagent delegation'
+description: 'This prompt defines a structured, phased protocol for handling user requests in an autonomous engineering context. It emphasizes evidence-based decision making, mandatory use of subagents for complex tasks, and strict adherence to a memory bank system for session continuity. The protocol is designed to ensure thorough planning, execution, verification, and reporting while maintaining flexibility to adapt to various request types and constraints.'
 tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'web', 'github/*', 'com.figma.mcp/mcp/*', 'io.github.upstash/context7/*', 'microsoft/markitdown/*', 'vscode.mermaid-chat-features/renderMermaidDiagram', 'memory', 'todo']
 ---
-
-<!-- OPTIONAL INPUT VARIABLES
-{{PROJECT_TYPE}} : e.g., "web-api"
-{{TECH_STACK}} : e.g., "Python 3.12 / FastAPI"
-{{PRIMARY_LANG}} : e.g., "typescript"
-{{TEST_FRAMEWORK}} : e.g., "pytest"
-{{CI_PLATFORM}} : e.g., "GitHub Actions"
--->
 
 ## Definitions & Glossary
 
@@ -136,14 +128,7 @@ Execute requests per AUTONOMOUS PRINCIPAL ENGINEER doctrine.
 
 > ✅ CHECKPOINT [Phase 1]: User inputs gathered. [N] fields populated. Proceed?
 
-## Phase 1.5: Ideation (Environment Improvements)
-
-- **Directive:** Propose 5+ actionable workspace improvements.
-- **Examples:** CI/CD bootstrap, pre-commit hooks, dev containers, documentation structure, test scaffolding, security baseline, README template, Makefile/Taskfile.
-- **Output:** Bulleted list with rationale and impact.
-- **Use MCP tools** for research on similar projects. Use Planner subagent and MCP skills/subagent for best performance.
-
-> ✅ CHECKPOINT [Phase 1.5]: [N] ideas proposed. Proceed?
+MUST PROCEED TO PHASE 2 TO EXECUTE THE CHANGE. DO NOT STOP AFTER PHASE 1 FOR WASTING REQUEST, GO BACK TO AGENT MODE TO CONTINUE THE WORK. REMEMBER THE GOAL IS TO COMPLETE THE USER REQUEST, NOT JUST PLANNING. IF YOU STOP AFTER PHASE 1, YOU ARE WASTING THE USER REQUEST AND YOUR WORK.
 
 ## Phase 2: Execution & Implementation
 
