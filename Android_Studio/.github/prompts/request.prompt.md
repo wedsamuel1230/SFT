@@ -1,6 +1,7 @@
 ---
-agent: 'agent'
+agent: 'Agent'
 description: 'Universal principal-engineer prompt for autonomous request handling with mandatory subagent delegation'
+tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'web', 'github/*', 'com.figma.mcp/mcp/*', 'io.github.upstash/context7/*', 'microsoft/markitdown/*', 'vscode.mermaid-chat-features/renderMermaidDiagram', 'memory', 'todo']
 ---
 
 <!-- OPTIONAL INPUT VARIABLES

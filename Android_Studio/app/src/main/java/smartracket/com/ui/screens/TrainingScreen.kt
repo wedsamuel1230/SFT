@@ -428,6 +428,7 @@ private fun DeviceListItem(
             Icon(
                 painter = deviceIcon,
                 contentDescription = null,
+                modifier = if (device.isSmartRacketDevice) Modifier.size(16.dp) else Modifier,
                 tint = if (device.isSmartRacketDevice)
                     MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant

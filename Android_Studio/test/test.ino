@@ -46,30 +46,6 @@ void onCtrlWrite(uint16_t connHandle, BLECharacteristic* characteristic, uint8_t
   Serial.println(streamingEnabled ? "ON" : "OFF");
 }
 
-// Callback for connection events
-void connectCallback(uint16_t conn_handle) {
-  Serial.println("Connected");
-  // Reset motion state when connected
-  motionArmed = true;
-  lastMotionSend = 0;
-}
-
-// Callback for disconnection events
-void disconnectCallback(uint16_t conn_handle, uint8_t reason) {
-  Serial.print("Disconnected, reason: 0x"); Serial.println(reason, HEX);
-  // Ensure advertising restarts after disconnection
-  Bluefruit.Advertising.start(0);
-  Serial.println("Restarted advertising");
-}
-
-void returnToAdvertising() {
-  Serial.println("Returning to advertising mode...");
-  Bluefruit.Advertising.stop();
-  delay(100); // Small delay before restarting
-  Bluefruit.Advertising.start(0);
-  Serial.println("Advertising restarted");
-}
-
 void setup() {
   Serial.begin(115200);
   uint32_t serialStart = millis();
@@ -78,10 +54,6 @@ void setup() {
   Bluefruit.begin();
   Bluefruit.setTxPower(4);
   Bluefruit.setName("SmartRacket");
-
-  // Set connection callbacks
-  Bluefruit.Periph.setConnectCallback(connectCallback);
-  Bluefruit.Periph.setDisconnectCallback(disconnectCallback);
 
   modelService.begin();
 
@@ -114,20 +86,7 @@ void setup() {
 }
 
 void loop() {
-  // If not connected and streaming is enabled, ensure we're advertising
-  if (streamingEnabled && !Bluefruit.connected()) {
-    // Check if we need to restart advertising (should be handled by restartOnDisconnect, but double-check)
-    if (!Bluefruit.Advertising.isRunning()) {
-      returnToAdvertising();
-    }
-    return; // Wait for connection
-  }
-
-  // If streaming is disabled, just wait and ensure we're advertising
-  if (!streamingEnabled) {
-    if (!Bluefruit.Advertising.isRunning()) {
-      returnToAdvertising();
-    }
+  if (!streamingEnabled || !Bluefruit.connected()) {
     return;
   }
 
