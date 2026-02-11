@@ -4,14 +4,13 @@ TITLE Git Auto Pusher
 
 cls
 :DoGit
-Set allm=
+Set allm
 
 set "Allm=%Hour%:%Min%:%Sec%"
 
 git add .
-git commit -m "%allm%"
+git commit -m "%allm% Auto Commit by Git Auto Pusher"
 git push
 Timeout /t 1 >nul
-)
 
 GOTO DoGit
