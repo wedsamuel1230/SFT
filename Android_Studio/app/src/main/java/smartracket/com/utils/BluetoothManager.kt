@@ -51,6 +51,7 @@ class BluetoothManager @Inject constructor(
         private const val MAX_RECONNECT_ATTEMPTS = 5
 
         private const val DESIRED_MTU = 517
+        private const val JSON_BUFFER_MAX = 1024
     }
 
     /**
@@ -106,6 +107,8 @@ class BluetoothManager @Inject constructor(
         extraBufferCapacity = 50
     )
     val modelOutputFlow: SharedFlow<McuModelOutput> = _modelOutputFlow.asSharedFlow()
+
+    private val jsonBuffer = StringBuilder()
 
     private val _batteryLevel = MutableStateFlow<Int?>(null)
     val batteryLevel: StateFlow<Int?> = _batteryLevel.asStateFlow()
@@ -446,12 +449,41 @@ class BluetoothManager @Inject constructor(
         if (data.isEmpty()) return
 
         // MCU model output is sent as JSON on the IMU characteristic
-        val payload = kotlin.runCatching { String(data, Charsets.UTF_8).trim() }.getOrNull()
-        if (!payload.isNullOrEmpty() && payload.firstOrNull() == '{') {
-            val parsed = parseModelOutputJson(payload)
-            if (parsed != null) {
-                coroutineScope.launch {
-                    _modelOutputFlow.emit(parsed)
+        val payload = kotlin.runCatching { String(data, Charsets.UTF_8) }.getOrNull()
+        if (!payload.isNullOrEmpty()) {
+            val trimmed = payload.trim()
+            val startsJson = trimmed.startsWith("{")
+
+            if (startsJson && trimmed.endsWith("}")) {
+                val parsed = parseModelOutputJson(trimmed)
+                if (parsed != null) {
+                    coroutineScope.launch {
+                        _modelOutputFlow.emit(parsed)
+                    }
+                }
+                return
+            }
+
+            if (startsJson || jsonBuffer.isNotEmpty()) {
+                jsonBuffer.append(payload)
+                var newlineIndex = jsonBuffer.indexOf("\n")
+                while (newlineIndex >= 0) {
+                    val line = jsonBuffer.substring(0, newlineIndex).trim()
+                    jsonBuffer.delete(0, newlineIndex + 1)
+                    if (line.startsWith("{")) {
+                        val parsed = parseModelOutputJson(line)
+                        if (parsed != null) {
+                            coroutineScope.launch {
+                                _modelOutputFlow.emit(parsed)
+                            }
+                        }
+                    }
+                    newlineIndex = jsonBuffer.indexOf("\n")
+                }
+
+                if (jsonBuffer.length > JSON_BUFFER_MAX) {
+                    Log.w(TAG, "Discarding oversized JSON buffer (${jsonBuffer.length} bytes)")
+                    jsonBuffer.clear()
                 }
                 return
             }
