@@ -245,6 +245,7 @@ fun TrainingScreen(
                             lastStroke = lastStroke,
                             currentHeartRate = currentHeartRate,
                             recentStrokes = recentStrokes,
+                            strokeAnimationTick = strokeAnimationTick,
                             onPause = { viewModel.pauseSession() },
                             onResume = { viewModel.resumeSession() },
                             onStop = { viewModel.stopSession() }
@@ -557,6 +558,7 @@ private fun ActiveTrainingContent(
     lastStroke: Stroke?,
     currentHeartRate: Int?,
     recentStrokes: List<Stroke>,
+    strokeAnimationTick: Long,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit
