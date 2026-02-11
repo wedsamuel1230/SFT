@@ -18,14 +18,12 @@ import javax.inject.Inject
  * - Training session lifecycle
  * - Real-time stroke classification and feedback
  * - Bluetooth connection state
- * - Highlight capture
  * - Heart rate monitoring
  */
 @HiltViewModel
 class TrainingViewModel @Inject constructor(
     private val trainingRepository: TrainingRepository,
     private val bluetoothRepository: BluetoothRepository,
-    private val highlightRepository: HighlightRepository,
     private val healthRepository: HealthRepository
 ) : ViewModel() {
     
@@ -77,11 +75,6 @@ class TrainingViewModel @Inject constructor(
     private val _showHealthAlert = MutableStateFlow<HealthAlert?>(null)
     val showHealthAlert: StateFlow<HealthAlert?> = _showHealthAlert.asStateFlow()
     
-    // ============= Highlights =============
-    
-    private val _highlightSaveState = MutableStateFlow<HighlightSaveState>(HighlightSaveState.Idle)
-    val highlightSaveState: StateFlow<HighlightSaveState> = _highlightSaveState.asStateFlow()
-    
     // ============= Error Handling =============
     
     private val _errorMessage = MutableStateFlow<String?>(null)
@@ -109,22 +102,6 @@ class TrainingViewModel @Inject constructor(
             }
         }
         
-        // Listen for BLE highlight button press
-        viewModelScope.launch {
-            bluetoothRepository.highlightTrigger.collect {
-                if (_sessionState.value == SessionState.ACTIVE) {
-                    val lastStroke = _lastStroke.value ?: return@collect
-                    val strokeInfo = StrokeBufferInfo(
-                        strokeType = lastStroke.strokeType,
-                        score = lastStroke.score,
-                        confidence = lastStroke.confidence,
-                        feedback = lastStroke.feedback
-                    )
-                    saveHighlight(isAutoSave = false, strokeInfo = strokeInfo)
-                }
-            }
-        }
-
         // Poll heart rate periodically
         viewModelScope.launch {
             while (true) {
@@ -182,9 +159,6 @@ class TrainingViewModel @Inject constructor(
                 _lastStroke.value = null
                 _currentScore.value = 0
                 _currentFeedback.value = "Ready! Start practicing."
-                
-                // Clear highlight buffer
-                highlightRepository.clearBuffer()
                 
                 // Start timer
                 startTimer()
@@ -303,70 +277,8 @@ class TrainingViewModel @Inject constructor(
             current.add(0, stroke)
             _recentStrokes.value = current.take(10)
             
-            // Add to highlight buffer (motion data is unavailable from MCU)
-            val strokeInfo = StrokeBufferInfo(
-                strokeType = stroke.strokeType,
-                score = stroke.score,
-                confidence = stroke.confidence,
-                feedback = stroke.feedback
-            )
-            highlightRepository.addToBuffer(
-                motionData = MotionData.empty(),
-                heartRate = currentHeartRate.value,
-                strokeInfo = strokeInfo
-            )
-            
         } catch (e: Exception) {
             _errorMessage.value = "Stroke processing error: ${e.message}"
-        }
-    }
-    
-    // ============= Highlight Capture =============
-    
-    /**
-     * Manually save current moment as highlight.
-     * Only allowed when BLE is connected.
-     */
-    fun saveHighlightManually() {
-        // Only allow manual save when BLE is connected
-        if (!bluetoothRepository.isConnected()) return
-        val lastStroke = _lastStroke.value ?: return
-        
-        val strokeInfo = StrokeBufferInfo(
-            strokeType = lastStroke.strokeType,
-            score = lastStroke.score,
-            confidence = lastStroke.confidence,
-            feedback = lastStroke.feedback
-        )
-        
-        saveHighlight(isAutoSave = false, strokeInfo = strokeInfo)
-    }
-    
-    private fun saveHighlight(isAutoSave: Boolean, strokeInfo: StrokeBufferInfo) {
-        val session = _currentSession.value ?: return
-        
-        viewModelScope.launch {
-            try {
-                _highlightSaveState.value = HighlightSaveState.Saving
-                
-                val clip = highlightRepository.createHighlight(
-                    sessionId = session.sessionId,
-                    strokeInfo = strokeInfo,
-                    heartRate = currentHeartRate.value,
-                    isAutoSaved = isAutoSave
-                )
-                
-                _highlightSaveState.value = HighlightSaveState.Saved(clip)
-                
-                // Reset state after delay
-                delay(2000)
-                _highlightSaveState.value = HighlightSaveState.Idle
-                
-            } catch (e: Exception) {
-                _highlightSaveState.value = HighlightSaveState.Error(e.message ?: "Save failed")
-                delay(2000)
-                _highlightSaveState.value = HighlightSaveState.Idle
-            }
         }
     }
     
@@ -404,15 +316,5 @@ class TrainingViewModel @Inject constructor(
         super.onCleared()
         timerJob?.cancel()
     }
-}
-
-/**
- * State for highlight save operation.
- */
-sealed class HighlightSaveState {
-    data object Idle : HighlightSaveState()
-    data object Saving : HighlightSaveState()
-    data class Saved(val clip: HighlightClip) : HighlightSaveState()
-    data class Error(val message: String) : HighlightSaveState()
 }
 

@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 import smartracket.com.db.SmartRacketDatabase
-import smartracket.com.model.HighlightClip
 import smartracket.com.model.Stroke
 import smartracket.com.model.TrainingSession
 import javax.inject.Inject
@@ -32,16 +31,15 @@ sealed class SyncState {
  *
  * Architecture:
  * - Room remains the single source of truth for the phone app.
- * - Firestore stores session summaries, strokes, and highlights
+ * - Firestore stores session summaries and strokes
  *   so the Galaxy Watch companion app can read them.
  * - Sync is session-granular: when a completed session is synced,
- *   all its strokes and highlights are pushed together.
+ *   all its strokes are pushed together.
  * - Uses anonymous Firebase Auth for per-device user identity.
  *
  * Firestore schema:
  *   users/{uid}/sessions/{sessionId}          — session doc
  *   users/{uid}/sessions/{sessionId}/strokes   — subcollection
- *   users/{uid}/sessions/{sessionId}/highlights — subcollection
  */
 @Singleton
 class FirebaseSyncRepository @Inject constructor(
@@ -52,7 +50,6 @@ class FirebaseSyncRepository @Inject constructor(
         private const val COLLECTION_USERS = "users"
         private const val COLLECTION_SESSIONS = "sessions"
         private const val COLLECTION_STROKES = "strokes"
-        private const val COLLECTION_HIGHLIGHTS = "highlights"
     }
 
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle)
@@ -60,7 +57,6 @@ class FirebaseSyncRepository @Inject constructor(
 
     private val sessionDao get() = database.trainingSessionDao()
     private val strokeDao get() = database.strokeDao()
-    private val highlightDao get() = database.highlightClipDao()
 
     /**
      * Whether Firebase is properly configured and available.
@@ -152,7 +148,7 @@ class FirebaseSyncRepository @Inject constructor(
     }
 
     /**
-     * Push a single session with all its strokes and highlights to Firestore.
+     * Push a single session with all its strokes to Firestore.
      */
     private suspend fun syncSession(uid: String, session: TrainingSession) {
         val firestore = FirebaseFirestore.getInstance()
@@ -180,19 +176,6 @@ class FirebaseSyncRepository @Inject constructor(
                 }
                 batch.commit().await()
             }
-        }
-
-        // 3. Write highlights as subcollection
-        val highlights = highlightDao.getBySessionId(session.sessionId)
-        if (highlights.isNotEmpty()) {
-            val batch = firestore.batch()
-            for (clip in highlights) {
-                val clipRef = sessionRef
-                    .collection(COLLECTION_HIGHLIGHTS)
-                    .document(clip.clipId.toString())
-                batch.set(clipRef, highlightToMap(clip), SetOptions.merge())
-            }
-            batch.commit().await()
         }
     }
 
@@ -247,25 +230,6 @@ class FirebaseSyncRepository @Inject constructor(
             "gyroY" to stroke.motionData.gyroY.map { it.toDouble() },
             "gyroZ" to stroke.motionData.gyroZ.map { it.toDouble() },
             "timestamps" to stroke.motionData.timestamps
-        )
-    )
-
-    private fun highlightToMap(clip: HighlightClip): Map<String, Any?> = mapOf(
-        "clipId" to clip.clipId,
-        "sessionId" to clip.sessionId,
-        "clipStartTime" to clip.clipStartTime,
-        "clipEndTime" to clip.clipEndTime,
-        "thumbnailUri" to clip.thumbnailUri,
-        "isAutoSaved" to clip.isAutoSaved,
-        "title" to clip.title,
-        "isShared" to clip.isShared,
-        "createdAt" to clip.createdAt,
-        "metadata" to mapOf(
-            "score" to clip.metadata.score,
-            "strokeType" to clip.metadata.strokeType,
-            "confidence" to clip.metadata.confidence.toDouble(),
-            "heartRate" to clip.metadata.heartRate,
-            "feedback" to clip.metadata.feedback
         )
     )
 }

@@ -48,7 +48,6 @@ import smartracket.com.viewmodel.HomeViewModel
 fun HomeScreen(
     onStartTraining: () -> Unit,
     onViewAnalytics: () -> Unit,
-    onViewHighlights: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val connectionState by viewModel.connectionState.collectAsState()
@@ -168,13 +167,6 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    QuickActionButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Stars,
-                        label = strings.highlightsLabel,
-                        onClick = onViewHighlights,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
                     QuickActionButton(
                         modifier = Modifier.weight(1f),
                         icon = Icons.Default.History,

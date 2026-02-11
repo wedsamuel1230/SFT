@@ -56,7 +56,6 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object Home : Screen("home", "Home", Icons.Default.Home)
     data object Training : Screen("training", "Training", Icons.Default.FitnessCenter)
     data object Analytics : Screen("analytics", "Analytics", Icons.Default.Analytics)
-    data object Highlights : Screen("highlights", "Highlights", Icons.Default.Stars)
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
 
@@ -89,7 +88,6 @@ fun SmartRacketApp(
             Screen.Home,
             Screen.Training,
             Screen.Analytics,
-            Screen.Highlights,
             Screen.Settings
         )
 
@@ -110,7 +108,6 @@ fun SmartRacketApp(
                                         Screen.Home -> currentStrings.home
                                         Screen.Training -> currentStrings.training
                                         Screen.Analytics -> currentStrings.analytics
-                                        Screen.Highlights -> currentStrings.highlights
                                         Screen.Settings -> currentStrings.settings
                                     }
                                 )
@@ -121,7 +118,6 @@ fun SmartRacketApp(
                                         Screen.Home -> currentStrings.home
                                         Screen.Training -> currentStrings.training
                                         Screen.Analytics -> currentStrings.analytics
-                                        Screen.Highlights -> currentStrings.highlights
                                         Screen.Settings -> currentStrings.settings
                                     },
                                     maxLines = 1,
@@ -164,9 +160,6 @@ fun SmartRacketApp(
                         },
                         onViewAnalytics = {
                             navController.navigate(Screen.Analytics.route)
-                        },
-                        onViewHighlights = {
-                            navController.navigate(Screen.Highlights.route)
                         }
                     )
                 }
@@ -184,17 +177,6 @@ fun SmartRacketApp(
 
                 composable(Screen.Analytics.route) {
                     AnalyticsScreen(
-                        onNavigateBack = {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Home.route) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        }
-                    )
-                }
-
-                composable(Screen.Highlights.route) {
-                    HighlightsScreen(
                         onNavigateBack = {
                             navController.navigate(Screen.Home.route) {
                                 popUpTo(Screen.Home.route) { inclusive = false }

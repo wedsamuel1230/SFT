@@ -34,7 +34,6 @@ import smartracket.com.model.*
 import smartracket.com.ui.i18n.LocalAppStrings
 import smartracket.com.ui.theme.SmartRacketColors
 import smartracket.com.ui.theme.scoreColor
-import smartracket.com.viewmodel.HighlightSaveState
 import smartracket.com.viewmodel.TrainingViewModel
 
 /**
@@ -45,7 +44,6 @@ import smartracket.com.viewmodel.TrainingViewModel
  * - Live feedback tips
  * - Elapsed time and stroke count
  * - Heart rate indicator
- * - Highlight save button
  * - Recent strokes list
  */
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
@@ -64,7 +62,6 @@ fun TrainingScreen(
     val recentStrokes by viewModel.recentStrokes.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val currentHeartRate by viewModel.currentHeartRate.collectAsState()
-    val highlightSaveState by viewModel.highlightSaveState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
     val healthAlert by viewModel.showHealthAlert.collectAsState()
@@ -246,12 +243,10 @@ fun TrainingScreen(
                             averageScore = averageScore,
                             lastStroke = lastStroke,
                             currentHeartRate = currentHeartRate,
-                            highlightSaveState = highlightSaveState,
                             recentStrokes = recentStrokes,
                             onPause = { viewModel.pauseSession() },
                             onResume = { viewModel.resumeSession() },
-                            onStop = { viewModel.stopSession() },
-                            onSaveHighlight = { viewModel.saveHighlightManually() }
+                            onStop = { viewModel.stopSession() }
                         )
                     }
                     SessionState.STOPPING -> {
@@ -559,12 +554,10 @@ private fun ActiveTrainingContent(
     averageScore: Float,
     lastStroke: Stroke?,
     currentHeartRate: Int?,
-    highlightSaveState: HighlightSaveState,
     recentStrokes: List<Stroke>,
     onPause: () -> Unit,
     onResume: () -> Unit,
-    onStop: () -> Unit,
-    onSaveHighlight: () -> Unit
+    onStop: () -> Unit
 ) {
     val strings = LocalAppStrings.current
 
@@ -689,16 +682,6 @@ private fun ActiveTrainingContent(
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
                 ) {
-                    // Highlight Save Button (Contextual)
-                    if (isConnected && !isPaused && lastStroke != null) {
-                        HighlightSaveButton(
-                            state = highlightSaveState,
-                            enabled = true,
-                            onClick = onSaveHighlight
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
                     // Main Control Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -817,47 +800,6 @@ private fun AnimatedScoreDisplay(
                 color = scoreColor(score)
             )
         }
-    }
-}
-
-@Composable
-private fun HighlightSaveButton(
-    state: HighlightSaveState,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val strings = LocalAppStrings.current
-    val buttonColor = when (state) {
-        is HighlightSaveState.Saved -> SmartRacketColors.StatusConnected
-        is HighlightSaveState.Error -> SmartRacketColors.StatusError
-        else -> MaterialTheme.colorScheme.secondary
-    }
-
-    val buttonText = when (state) {
-        HighlightSaveState.Idle -> strings.saveHighlight
-        HighlightSaveState.Saving -> strings.saving
-        is HighlightSaveState.Saved -> strings.saved
-        is HighlightSaveState.Error -> strings.failed
-    }
-
-    val buttonIcon = when (state) {
-        HighlightSaveState.Idle -> Icons.Default.Stars
-        HighlightSaveState.Saving -> Icons.Default.Sync
-        is HighlightSaveState.Saved -> Icons.Default.Check
-        is HighlightSaveState.Error -> Icons.Default.Error
-    }
-
-    FilledTonalButton(
-        onClick = onClick,
-        enabled = enabled && state is HighlightSaveState.Idle,
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = buttonColor.copy(alpha = 0.2f),
-            contentColor = buttonColor
-        )
-    ) {
-        Icon(buttonIcon, contentDescription = null)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(buttonText)
     }
 }
 
