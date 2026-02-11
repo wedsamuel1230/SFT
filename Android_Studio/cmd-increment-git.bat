@@ -3,13 +3,11 @@
 TITLE Git Auto Pusher
 
 cls
+git checkout "auto commit" 2>nul || git checkout -b "auto commit"
 :DoGit
-Set allm
-
-set "Allm=%Hour%:%Min%:%Sec%"
 
 git add .
-git commit -m "%allm% Auto Commit by Git Auto Pusher"
+git commit -m "Auto Commit by Git Auto Pusher at %time%"
 git push
 Timeout /t 600 >nul
 
