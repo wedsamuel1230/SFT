@@ -5,6 +5,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import smartracket.com.model.HeartRateReading
 import smartracket.com.model.MotionData
+import smartracket.com.model.Sport
+import smartracket.com.model.WarmUpState
 
 /**
  * Room type converters for complex data types.
@@ -14,6 +16,20 @@ import smartracket.com.model.MotionData
  */
 class Converters {
     private val gson = Gson()
+
+    @TypeConverter
+    fun fromSport(value: Sport): String = value.name
+
+    @TypeConverter
+    fun toSport(value: String?): Sport = Sport.fromName(value)
+
+    @TypeConverter
+    fun fromWarmUpState(value: WarmUpState): String = value.name
+
+    @TypeConverter
+    fun toWarmUpState(value: String?): WarmUpState {
+        return value?.let { WarmUpState.valueOf(it) } ?: WarmUpState.NOT_STARTED
+    }
 
     // ============= HeartRateReading List =============
 

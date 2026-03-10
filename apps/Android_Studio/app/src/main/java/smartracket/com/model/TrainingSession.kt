@@ -20,6 +20,9 @@ data class TrainingSession(
     /** Unix timestamp when the session started */
     val startTime: Long,
 
+    /** Selected sport for this session */
+    val sport: Sport = Sport.TABLE_TENNIS,
+
     /** Unix timestamp when the session ended (null if still active) */
     val endTime: Long? = null,
 
@@ -48,7 +51,19 @@ data class TrainingSession(
     val notes: String? = null,
 
     /** Whether the session was synced to cloud */
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+
+    /** Warm-up completion state before active training */
+    val warmUpState: WarmUpState = WarmUpState.NOT_STARTED,
+
+    /** Warm-up duration completed or skipped at */
+    val warmUpDurationMs: Long = 0,
+
+    /** Rest reminder cadence used for this session */
+    val restReminderIntervalMs: Long = RestReminderPolicy.DEFAULT_INTERVAL_MS,
+
+    /** Number of rest reminders triggered during this session */
+    val restReminderCount: Int = 0
 )
 
 /**
@@ -64,6 +79,7 @@ data class HeartRateReading(
  */
 enum class SessionState {
     IDLE,
+    WARMING_UP,
     STARTING,
     ACTIVE,
     PAUSED,

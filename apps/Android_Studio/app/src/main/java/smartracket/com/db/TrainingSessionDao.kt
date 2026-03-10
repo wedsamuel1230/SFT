@@ -2,7 +2,9 @@ package smartracket.com.db
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import smartracket.com.model.Sport
 import smartracket.com.model.TrainingSession
+import smartracket.com.model.WarmUpState
 
 /**
  * Data Access Object for TrainingSession entities.
@@ -39,6 +41,15 @@ interface TrainingSessionDao {
 
     @Query("UPDATE training_sessions SET isSynced = 0 WHERE sessionId = :sessionId")
     suspend fun markAsUnsynced(sessionId: Long)
+
+    @Query("UPDATE training_sessions SET warmUpState = :warmUpState, warmUpDurationMs = :warmUpDurationMs WHERE sessionId = :sessionId")
+    suspend fun updateWarmUp(sessionId: Long, warmUpState: WarmUpState, warmUpDurationMs: Long)
+
+    @Query("UPDATE training_sessions SET restReminderCount = :restReminderCount WHERE sessionId = :sessionId")
+    suspend fun updateRestReminderCount(sessionId: Long, restReminderCount: Int)
+
+    @Query("UPDATE training_sessions SET sport = :sport WHERE sessionId = :sessionId")
+    suspend fun updateSport(sessionId: Long, sport: Sport)
 
     // ============= Delete Operations =============
 

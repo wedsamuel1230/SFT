@@ -199,6 +199,7 @@ class FirebaseSyncRepository @Inject constructor(
     private fun sessionToMap(session: TrainingSession): Map<String, Any?> = mapOf(
         "sessionId" to session.sessionId,
         "startTime" to session.startTime,
+        "sport" to session.sport.name,
         "endTime" to session.endTime,
         "totalDuration" to session.totalDuration,
         "avgScore" to session.avgScore.toDouble(),
@@ -208,6 +209,10 @@ class FirebaseSyncRepository @Inject constructor(
         "maxHeartRate" to session.maxHeartRate,
         "caloriesBurned" to session.caloriesBurned?.toDouble(),
         "notes" to session.notes,
+        "warmUpState" to session.warmUpState.name,
+        "warmUpDurationMs" to session.warmUpDurationMs,
+        "restReminderIntervalMs" to session.restReminderIntervalMs,
+        "restReminderCount" to session.restReminderCount,
         "syncedAt" to System.currentTimeMillis()
     )
 

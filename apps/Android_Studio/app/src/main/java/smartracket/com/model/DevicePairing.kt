@@ -29,6 +29,9 @@ data class DevicePairing(
     /** Firmware version of the ESP32 */
     val firmwareVersion: String? = null,
 
+    /** Remembered default sport for this racket */
+    val defaultSport: Sport = Sport.TABLE_TENNIS,
+
     /** Device added timestamp */
     val addedAt: Long = System.currentTimeMillis()
 )

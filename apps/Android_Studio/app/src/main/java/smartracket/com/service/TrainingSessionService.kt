@@ -11,7 +11,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import smartracket.com.MainActivity
 import smartracket.com.R
-import smartracket.com.model.SessionState
+import smartracket.com.model.RestReminderPolicy
 import smartracket.com.repository.TrainingRepository
 import javax.inject.Inject
 
@@ -34,6 +34,12 @@ class TrainingSessionService : Service() {
         const val ACTION_STOP = "com.smartracket.action.STOP_TRAINING_SERVICE"
 
         const val EXTRA_SESSION_ID = "session_id"
+        const val EXTRA_INITIAL_ELAPSED_MS = "initial_elapsed_ms"
+        const val EXTRA_REMINDER_INTERVAL_MS = "reminder_interval_ms"
+        const val EXTRA_INITIAL_REMINDER_COUNT = "initial_reminder_count"
+
+        const val REMINDER_CHANNEL_ID = "smartracket_rest_channel"
+        const val REMINDER_NOTIFICATION_ID = 1003
     }
 
     @Inject
@@ -43,7 +49,10 @@ class TrainingSessionService : Service() {
 
     private var sessionId: Long = 0
     private var startTime: Long = 0
+    private var elapsedOffsetMs: Long = 0
     private var strokeCount: Int = 0
+    private var reminderIntervalMs: Long = RestReminderPolicy.DEFAULT_INTERVAL_MS
+    private var reminderCount: Int = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -55,6 +64,9 @@ class TrainingSessionService : Service() {
             ACTION_START -> {
                 sessionId = intent.getLongExtra(EXTRA_SESSION_ID, 0)
                 startTime = System.currentTimeMillis()
+                elapsedOffsetMs = intent.getLongExtra(EXTRA_INITIAL_ELAPSED_MS, 0L)
+                reminderIntervalMs = intent.getLongExtra(EXTRA_REMINDER_INTERVAL_MS, RestReminderPolicy.DEFAULT_INTERVAL_MS)
+                reminderCount = intent.getIntExtra(EXTRA_INITIAL_REMINDER_COUNT, 0)
                 startForegroundService()
             }
             ACTION_STOP -> stopService()
@@ -79,8 +91,17 @@ class TrainingSessionService : Service() {
         serviceScope.launch {
             while (isActive) {
                 delay(1000)
-                val elapsed = (System.currentTimeMillis() - startTime) / 1000
+                val elapsedMs = elapsedOffsetMs + (System.currentTimeMillis() - startTime)
+                val elapsed = elapsedMs / 1000
                 updateNotification(elapsed.toInt(), strokeCount)
+
+                if (RestReminderPolicy.shouldTriggerReminder(elapsedMs, reminderCount, reminderIntervalMs)) {
+                    reminderCount += 1
+                    showRestReminderNotification(reminderCount)
+                    if (sessionId > 0) {
+                        trainingRepository.updateRestReminderCount(sessionId, reminderCount)
+                    }
+                }
             }
         }
 
@@ -111,8 +132,17 @@ class TrainingSessionService : Service() {
                 setShowBadge(false)
             }
 
+            val reminderChannel = NotificationChannel(
+                REMINDER_CHANNEL_ID,
+                "Training Break Reminders",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Rest reminders during long practice sessions"
+            }
+
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(reminderChannel)
         }
     }
 
@@ -142,6 +172,27 @@ class TrainingSessionService : Service() {
         val notification = createNotification(elapsedSeconds, strokes)
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun showRestReminderNotification(reminderCount: Int) {
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            reminderCount,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, REMINDER_CHANNEL_ID)
+            .setContentTitle("Time for a short rest")
+            .setContentText("You have hit reminder #$reminderCount. Pause briefly and reset your form.")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(REMINDER_NOTIFICATION_ID, notification)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

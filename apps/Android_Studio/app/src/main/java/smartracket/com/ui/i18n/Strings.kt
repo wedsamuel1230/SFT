@@ -107,6 +107,16 @@ data class AppStrings(
     val unknownDevice: String,
     val back: String,
     val battery: String,
+    val chooseSportTitle: String = "Choose your sport",
+    val chooseSportSubtitle: String = "Select the sport for this racket before training begins.",
+    val continueLabel: String = "Continue",
+    val warmUpTitle: String = "Warm up",
+    val warmUpSubtitle: String = "Loosen up before your live swing session.",
+    val skipWarmUp: String = "Skip warm-up",
+    val finishWarmUp: String = "Start training",
+    val restReminderTitle: String = "Time for a short rest",
+    val restReminderMessage: String = "You have been training for a while. A short break helps you keep your form sharp.",
+    val keepPlaying: String = "Keep playing",
     // endregion
 
     // region SettingsScreen

@@ -5,6 +5,8 @@ import android.os.Build
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -66,6 +68,11 @@ fun TrainingScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
     val healthAlert by viewModel.showHealthAlert.collectAsState()
+    val selectedSport by viewModel.selectedSport.collectAsState()
+    val preparationStep by viewModel.preparationStep.collectAsState()
+    val warmUpPlan by viewModel.warmUpPlan.collectAsState()
+    val warmUpElapsedTime by viewModel.warmUpElapsedTime.collectAsState()
+    val restReminder by viewModel.showRestReminder.collectAsState()
     val strings = LocalAppStrings.current
 
     // Health alert dialog
@@ -123,6 +130,45 @@ fun TrainingScreen(
                 }
             }
         )
+    }
+
+    if (healthAlert == null) {
+        restReminder?.let { reminder ->
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissRestReminder() },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Hotel,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(48.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = strings.restReminderTitle,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "${strings.restReminderMessage} (${formatTime(reminder.elapsedTimeMs)})",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.pauseForRest() }) {
+                        Text(strings.restNow)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissRestReminder() }) {
+                        Text(strings.keepPlaying)
+                    }
+                }
+            )
+        }
     }
 
     // Bluetooth permissions
@@ -219,11 +265,27 @@ fun TrainingScreen(
                 // Training content
                 when (sessionState) {
                     SessionState.IDLE -> {
-                        IdleStateContent(
-                            connectionState = connectionState,
-                            onStartSession = { viewModel.startSession() }
-                        )
+                        when (preparationStep) {
+                            TrainingPreparationStep.SPORT_SELECTION -> SportSelectionContent(
+                                selectedSport = selectedSport,
+                                availableSports = viewModel.availableSports,
+                                onSelectSport = viewModel::selectSport,
+                                onContinue = viewModel::confirmSportSelection
+                            )
+                            TrainingPreparationStep.WARM_UP -> WarmUpContent(
+                                plan = warmUpPlan,
+                                elapsedTimeMs = warmUpElapsedTime,
+                                onSkip = viewModel::skipWarmUp,
+                                onFinish = viewModel::completeWarmUp
+                            )
+                        }
                     }
+                    SessionState.WARMING_UP -> WarmUpContent(
+                        plan = warmUpPlan,
+                        elapsedTimeMs = warmUpElapsedTime,
+                        onSkip = viewModel::skipWarmUp,
+                        onFinish = viewModel::completeWarmUp
+                    )
                     SessionState.STARTING -> {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -459,89 +521,187 @@ private fun DeviceListItem(
 }
 
 @Composable
-private fun IdleStateContent(
-    connectionState: BluetoothConnectionState,
-    onStartSession: () -> Unit
+private fun SportSelectionContent(
+    selectedSport: Sport?,
+    availableSports: List<Sport>,
+    onSelectSport: (Sport) -> Unit,
+    onContinue: () -> Unit
 ) {
     val strings = LocalAppStrings.current
-    // One UI: Content centered, action at bottom
-    Box(
-        modifier = Modifier.fillMaxSize()
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(bottom = 80.dp), // Shift visual up slightly
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Connected device info
-            if (connectionState is BluetoothConnectionState.Connected) {
-                Surface(
-                    shape = CircleShape,
-                    color = SmartRacketColors.StatusConnected.copy(alpha = 0.1f),
-                    contentColor = SmartRacketColors.StatusConnected
-                ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = strings.chooseSportTitle,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = strings.chooseSportSubtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+            ) {
+                itemsIndexed(availableSports.chunked(2)) { _, rowSports ->
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.BluetoothConnected,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = connectionState.device.deviceName,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        rowSports.forEach { sport ->
+                            SportCard(
+                                sport = sport,
+                                selected = selectedSport == sport,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onSelectSport(sport) }
+                            )
+                        }
+                        if (rowSports.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Main Visual
-            Icon(
-                painter = painterResource(R.drawable.ic_table_tennis),
-                contentDescription = null,
-                modifier = Modifier.size(100.dp),
-                tint = MaterialTheme.colorScheme.primaryContainer
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = strings.readyToTrain,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                 color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = strings.paddleReadyAction,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
         }
 
-        // Action Button at bottom
         Button(
-            onClick = onStartSession,
+            onClick = onContinue,
+            enabled = selectedSport != null,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
                 .height(56.dp),
-            shape = MaterialTheme.shapes.extraLarge // One UI fully rounded
+            shape = MaterialTheme.shapes.extraLarge
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(strings.startTrainingBtn, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(strings.continueLabel, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun SportCard(
+    sport: Sport,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.SportsTennis,
+                contentDescription = null,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(28.dp)
+            )
+            Text(
+                text = sport.displayName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun WarmUpContent(
+    plan: WarmUpPlan?,
+    elapsedTimeMs: Long,
+    onSkip: () -> Unit,
+    onFinish: () -> Unit
+) {
+    val strings = LocalAppStrings.current
+    val progress = if (plan == null || plan.totalDurationSeconds == 0) {
+        0f
+    } else {
+        (elapsedTimeMs.toFloat() / (plan.totalDurationSeconds * 1000f)).coerceIn(0f, 1f)
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = strings.warmUpTitle,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = plan?.title ?: strings.warmUpSubtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+            Text(
+                text = formatTime(elapsedTimeMs),
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            plan?.steps?.forEach { step ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(step.title, style = MaterialTheme.typography.bodyLarge)
+                        Text("${step.durationSeconds}s", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = onFinish,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = MaterialTheme.shapes.extraLarge
+            ) {
+                Text(strings.finishWarmUp, fontWeight = FontWeight.Bold)
+            }
+            OutlinedButton(
+                onClick = onSkip,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = MaterialTheme.shapes.extraLarge
+            ) {
+                Text(strings.skipWarmUp)
+            }
         }
     }
 }

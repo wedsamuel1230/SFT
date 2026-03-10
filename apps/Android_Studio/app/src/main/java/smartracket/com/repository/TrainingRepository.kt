@@ -32,12 +32,21 @@ class TrainingRepository @Inject constructor(
     /**
      * Start a new training session.
      */
-    suspend fun startSession(): TrainingSession {
+    suspend fun startSession(
+        sport: Sport = Sport.TABLE_TENNIS,
+        warmUpState: WarmUpState = WarmUpState.NOT_STARTED,
+        warmUpDurationMs: Long = 0,
+        restReminderIntervalMs: Long = RestReminderPolicy.DEFAULT_INTERVAL_MS
+    ): TrainingSession {
         // End any existing active session
         getActiveSession()?.let { endSession(it.sessionId) }
 
         val session = TrainingSession(
-            startTime = System.currentTimeMillis()
+            startTime = System.currentTimeMillis(),
+            sport = sport,
+            warmUpState = warmUpState,
+            warmUpDurationMs = warmUpDurationMs,
+            restReminderIntervalMs = restReminderIntervalMs
         )
 
         val sessionId = sessionDao.insert(session)
@@ -124,6 +133,18 @@ class TrainingRepository @Inject constructor(
      */
     suspend fun updateSessionNotes(sessionId: Long, notes: String?) {
         sessionDao.updateNotes(sessionId, notes)
+    }
+
+    suspend fun updateSessionWarmUp(sessionId: Long, warmUpState: WarmUpState, warmUpDurationMs: Long) {
+        sessionDao.updateWarmUp(sessionId, warmUpState, warmUpDurationMs)
+    }
+
+    suspend fun updateSessionSport(sessionId: Long, sport: Sport) {
+        sessionDao.updateSport(sessionId, sport)
+    }
+
+    suspend fun updateRestReminderCount(sessionId: Long, restReminderCount: Int) {
+        sessionDao.updateRestReminderCount(sessionId, restReminderCount)
     }
 
     /**

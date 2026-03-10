@@ -3,6 +3,7 @@ package smartracket.com.db
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 import smartracket.com.model.DevicePairing
+import smartracket.com.model.Sport
 
 /**
  * Data Access Object for DevicePairing entities.
@@ -33,6 +34,9 @@ interface DevicePairingDao {
 
     @Query("UPDATE device_pairings SET isPrimary = 1 WHERE deviceId = :deviceId")
     suspend fun setPrimaryDevice(deviceId: String)
+
+    @Query("UPDATE device_pairings SET defaultSport = :sport WHERE deviceId = :deviceId")
+    suspend fun updateDefaultSport(deviceId: String, sport: Sport)
 
     // ============= Delete Operations =============
 

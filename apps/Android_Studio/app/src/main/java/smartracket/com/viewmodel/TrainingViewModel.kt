@@ -1,14 +1,19 @@
 package smartracket.com.viewmodel
 
+import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import smartracket.com.db.SmartRacketDatabase
 import smartracket.com.model.*
 import smartracket.com.repository.*
+import smartracket.com.service.TrainingSessionService
 import javax.inject.Inject
 
 /**
@@ -22,9 +27,11 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class TrainingViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val trainingRepository: TrainingRepository,
     private val bluetoothRepository: BluetoothRepository,
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val database: SmartRacketDatabase
 ) : ViewModel() {
     
     // ============= Session State =============
@@ -37,8 +44,27 @@ class TrainingViewModel @Inject constructor(
     
     private val _elapsedTime = MutableStateFlow(0L)
     val elapsedTime: StateFlow<Long> = _elapsedTime.asStateFlow()
+
+    private val _selectedSport = MutableStateFlow<Sport?>(null)
+    val selectedSport: StateFlow<Sport?> = _selectedSport.asStateFlow()
+
+    private val _preparationStep = MutableStateFlow(TrainingPreparationStep.SPORT_SELECTION)
+    val preparationStep: StateFlow<TrainingPreparationStep> = _preparationStep.asStateFlow()
+
+    private val _warmUpPlan = MutableStateFlow<WarmUpPlan?>(null)
+    val warmUpPlan: StateFlow<WarmUpPlan?> = _warmUpPlan.asStateFlow()
+
+    private val _warmUpElapsedTime = MutableStateFlow(0L)
+    val warmUpElapsedTime: StateFlow<Long> = _warmUpElapsedTime.asStateFlow()
+
+    private val _showRestReminder = MutableStateFlow<RestReminderUiState?>(null)
+    val showRestReminder: StateFlow<RestReminderUiState?> = _showRestReminder.asStateFlow()
+
+    val availableSports: List<Sport> = Sport.entries
     
     private var timerJob: Job? = null
+    private var warmUpJob: Job? = null
+    private var restReminderCount = 0
     
     // ============= Stroke & Feedback =============
     
@@ -101,6 +127,8 @@ class TrainingViewModel @Inject constructor(
             connectionState.collect { state ->
                 if (state is BluetoothConnectionState.Error) {
                     _errorMessage.value = state.message
+                } else if (state is BluetoothConnectionState.Connected && _sessionState.value == SessionState.IDLE) {
+                    syncConnectedDevice(state.device)
                 }
             }
         }
@@ -137,7 +165,12 @@ class TrainingViewModel @Inject constructor(
      */
     fun pauseForRest() {
         _showHealthAlert.value = null
+        _showRestReminder.value = null
         pauseSession()
+    }
+
+    fun dismissRestReminder() {
+        _showRestReminder.value = null
     }
     
     // ============= Session Control =============
@@ -147,13 +180,100 @@ class TrainingViewModel @Inject constructor(
      */
     fun startSession() {
         if (_sessionState.value != SessionState.IDLE) return
+
+        val sport = _selectedSport.value ?: Sport.TABLE_TENNIS
+        startActiveSession(
+            sport = sport,
+            warmUpState = WarmUpState.NOT_STARTED,
+            warmUpDurationMs = 0L
+        )
+    }
+
+    fun selectSport(sport: Sport) {
+        _selectedSport.value = sport
+    }
+
+    fun confirmSportSelection() {
+        if (_sessionState.value != SessionState.IDLE) return
+
+        val sport = _selectedSport.value ?: Sport.TABLE_TENNIS
+        viewModelScope.launch {
+            persistDeviceSport(sport)
+        }
+        _warmUpPlan.value = WarmUpPlans.forSport(sport)
+        _warmUpElapsedTime.value = 0L
+        _preparationStep.value = TrainingPreparationStep.WARM_UP
+        _sessionState.value = SessionState.WARMING_UP
+        beginWarmUp()
+    }
+
+    fun beginWarmUp() {
+        if (_sessionState.value != SessionState.WARMING_UP) return
+
+        warmUpJob?.cancel()
+        warmUpJob = viewModelScope.launch {
+            val startOffset = _warmUpElapsedTime.value
+            val startTime = System.currentTimeMillis()
+
+            while (true) {
+                _warmUpElapsedTime.value = startOffset + (System.currentTimeMillis() - startTime)
+
+                val plan = _warmUpPlan.value
+                if (plan != null && _warmUpElapsedTime.value >= plan.totalDurationSeconds * 1000L) {
+                    completeWarmUp()
+                    break
+                }
+
+                delay(100)
+            }
+        }
+    }
+
+    fun skipWarmUp() {
+        if (_sessionState.value != SessionState.WARMING_UP) return
+
+        warmUpJob?.cancel()
+        startActiveSession(
+            sport = _selectedSport.value ?: Sport.TABLE_TENNIS,
+            warmUpState = WarmUpState.SKIPPED,
+            warmUpDurationMs = _warmUpElapsedTime.value
+        )
+    }
+
+    fun completeWarmUp() {
+        if (_sessionState.value != SessionState.WARMING_UP) return
+
+        warmUpJob?.cancel()
+        startActiveSession(
+            sport = _selectedSport.value ?: Sport.TABLE_TENNIS,
+            warmUpState = WarmUpState.COMPLETED,
+            warmUpDurationMs = _warmUpElapsedTime.value
+        )
+    }
+
+    private fun startActiveSession(
+        sport: Sport,
+        warmUpState: WarmUpState,
+        warmUpDurationMs: Long
+    ) {
+        if (_sessionState.value == SessionState.ACTIVE || _sessionState.value == SessionState.STARTING) return
         
         viewModelScope.launch {
             try {
                 _sessionState.value = SessionState.STARTING
+                warmUpJob?.cancel()
                 
-                val session = trainingRepository.startSession()
+                val session = trainingRepository.startSession(
+                    sport = sport,
+                    warmUpState = warmUpState,
+                    warmUpDurationMs = warmUpDurationMs,
+                    restReminderIntervalMs = RestReminderPolicy.DEFAULT_INTERVAL_MS
+                )
                 _currentSession.value = session
+                _selectedSport.value = sport
+                _warmUpPlan.value = WarmUpPlans.forSport(sport)
+                restReminderCount = session.restReminderCount
+                _showRestReminder.value = null
                 
                 // Reset counters
                 _strokeCount.value = 0
@@ -162,9 +282,11 @@ class TrainingViewModel @Inject constructor(
                 _lastStroke.value = null
                 _currentScore.value = 0
                 _currentFeedback.value = "Ready! Start practicing."
+                _elapsedTime.value = 0L
                 
                 // Start timer
                 startTimer()
+                startTrainingService(session)
                 
                 _sessionState.value = SessionState.ACTIVE
                 
@@ -182,6 +304,7 @@ class TrainingViewModel @Inject constructor(
         if (_sessionState.value != SessionState.ACTIVE) return
         
         timerJob?.cancel()
+        stopTrainingService()
         _sessionState.value = SessionState.PAUSED
     }
     
@@ -192,6 +315,7 @@ class TrainingViewModel @Inject constructor(
         if (_sessionState.value != SessionState.PAUSED) return
         
         startTimer()
+        _currentSession.value?.let { startTrainingService(it, _elapsedTime.value, restReminderCount) }
         _sessionState.value = SessionState.ACTIVE
     }
     
@@ -206,6 +330,8 @@ class TrainingViewModel @Inject constructor(
                 _sessionState.value = SessionState.STOPPING
                 
                 timerJob?.cancel()
+                warmUpJob?.cancel()
+                stopTrainingService()
                 
                 _currentSession.value?.let { session ->
                     val endedSession = trainingRepository.endSession(session.sessionId)
@@ -214,7 +340,7 @@ class TrainingViewModel @Inject constructor(
                     // Sync to Health Connect
                     endedSession?.let {
                         healthRepository.recordExerciseSession(
-                            title = "Table Tennis Training",
+                            title = it.sport.healthSessionTitle,
                             startTime = it.startTime,
                             endTime = it.endTime ?: System.currentTimeMillis(),
                             notes = "Strokes: ${it.totalStrokes}, Avg Score: ${it.avgScore}"
@@ -234,6 +360,9 @@ class TrainingViewModel @Inject constructor(
      * Reset to idle state (after viewing summary).
      */
     fun resetSession() {
+        timerJob?.cancel()
+        warmUpJob?.cancel()
+        stopTrainingService()
         _sessionState.value = SessionState.IDLE
         _currentSession.value = null
         _elapsedTime.value = 0
@@ -241,6 +370,10 @@ class TrainingViewModel @Inject constructor(
         _strokeAnimationTick.value = 0L
         _averageScore.value = 0f
         _recentStrokes.value = emptyList()
+        _warmUpElapsedTime.value = 0L
+        _showRestReminder.value = null
+        restReminderCount = 0
+        _preparationStep.value = TrainingPreparationStep.SPORT_SELECTION
     }
     
     private fun startTimer() {
@@ -251,9 +384,75 @@ class TrainingViewModel @Inject constructor(
             
             while (true) {
                 _elapsedTime.value = startOffset + (System.currentTimeMillis() - startTime)
+                val session = _currentSession.value
+                if (session != null && RestReminderPolicy.shouldTriggerReminder(
+                        elapsedTimeMs = _elapsedTime.value,
+                        remindersAlreadyShown = restReminderCount,
+                        intervalMs = session.restReminderIntervalMs
+                    )) {
+                    restReminderCount += 1
+                    _showRestReminder.value = RestReminderUiState(
+                        reminderCount = restReminderCount,
+                        elapsedTimeMs = _elapsedTime.value
+                    )
+                    trainingRepository.updateRestReminderCount(session.sessionId, restReminderCount)
+                }
                 delay(100)  // Update every 100ms
             }
         }
+    }
+
+    private suspend fun syncConnectedDevice(device: DevicePairing) {
+        val deviceDao = database.devicePairingDao()
+        val existing = deviceDao.getByMacAddress(device.bluetoothMacAddress)
+        val merged = (existing ?: device).copy(
+            deviceId = device.deviceId,
+            deviceName = device.deviceName,
+            bluetoothMacAddress = device.bluetoothMacAddress,
+            lastConnected = System.currentTimeMillis(),
+            batteryLevel = batteryLevel.value ?: existing?.batteryLevel,
+            firmwareVersion = device.firmwareVersion ?: existing?.firmwareVersion,
+            defaultSport = existing?.defaultSport ?: device.defaultSport,
+            isPrimary = existing?.isPrimary ?: device.isPrimary,
+            addedAt = existing?.addedAt ?: device.addedAt
+        )
+        deviceDao.insert(merged)
+        if (_selectedSport.value == null) {
+            _selectedSport.value = merged.defaultSport
+        }
+    }
+
+    private suspend fun persistDeviceSport(sport: Sport) {
+        val device = (connectionState.value as? BluetoothConnectionState.Connected)?.device ?: return
+        val deviceDao = database.devicePairingDao()
+        val existing = deviceDao.getByMacAddress(device.bluetoothMacAddress)
+        if (existing != null) {
+            deviceDao.updateDefaultSport(existing.deviceId, sport)
+        } else {
+            deviceDao.insert(device.copy(defaultSport = sport, lastConnected = System.currentTimeMillis()))
+        }
+    }
+
+    private fun startTrainingService(
+        session: TrainingSession,
+        initialElapsedMs: Long = 0L,
+        initialReminderCount: Int = 0
+    ) {
+        val intent = Intent(context, TrainingSessionService::class.java).apply {
+            action = TrainingSessionService.ACTION_START
+            putExtra(TrainingSessionService.EXTRA_SESSION_ID, session.sessionId)
+            putExtra(TrainingSessionService.EXTRA_INITIAL_ELAPSED_MS, initialElapsedMs)
+            putExtra(TrainingSessionService.EXTRA_REMINDER_INTERVAL_MS, session.restReminderIntervalMs)
+            putExtra(TrainingSessionService.EXTRA_INITIAL_REMINDER_COUNT, initialReminderCount)
+        }
+        context.startForegroundService(intent)
+    }
+
+    private fun stopTrainingService() {
+        val intent = Intent(context, TrainingSessionService::class.java).apply {
+            action = TrainingSessionService.ACTION_STOP
+        }
+        context.startService(intent)
     }
     
     // ============= Stroke Processing =============
@@ -320,6 +519,7 @@ class TrainingViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        warmUpJob?.cancel()
     }
 }
 
