@@ -66,5 +66,5 @@ Troubleshooting (quick tips)
 Need more help?
 
 - See `apps/Android_Studio/README.md` for full setup, build and debug instructions.
-- See `arduino code/XIAOEI/README.md` for firmware instructions.
+- See `arduino_code/XIAOEI/README.md` for firmware instructions.
 - Open an issue in the repo with logs and device details if you’re stuck.
