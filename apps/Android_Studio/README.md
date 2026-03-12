@@ -152,5 +152,5 @@ Adjust the tag to match the app's logging tags.
 ## 12 — Where to look next
 
 - App source: `apps/Android_Studio/app/src/main/java` and `res` for layouts.
-- For firmware pairing details, consult `arduino code/XIAOEI/README.md` and `XIAOEI.ino`.
+- For firmware pairing details, consult `arduino_code/XIAOEI/README.md` and `XIAOEI.ino`.
 - Project-wide docs: `doc/` folder.

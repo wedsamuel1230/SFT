@@ -15,9 +15,13 @@ Welcome to the SmartRacket repository! This project combines hardware, firmware,
 │       ├── build.gradle.kts
 │       ├── gradle.properties
 │       └── ...
-├── arduino code/            # Embedded firmware for racket hardware
+├── arduino_code/            # Embedded firmware for racket hardware
 │   └── XIAOEI/
 │       └── XIAOEI.ino
+│   ├── XIAO_BLE_IMU_Sender/
+│   │   └── XIAO_BLE_IMU_Sender.ino
+│   └── XIAO_BLE_IMU_Receiver/
+│       └── XIAO_BLE_IMU_Receiver.ino
 ├── doc/                     # Documentation
 │   ├── 3d model/
 │   └── apps/
@@ -40,9 +44,12 @@ Welcome to the SmartRacket repository! This project combines hardware, firmware,
 
 ### 3. Arduino Firmware
 
-- Located in `arduino code/XIAOEI/XIAOEI.ino`.
+- Located in `arduino_code/XIAOEI/XIAOEI.ino`.
 - Written for Arduino-compatible microcontrollers.
 - Handles sensor data acquisition and communication with the Android app.
+- Additional BLE IMU examples are available for two `Seeed Studio XIAO nRF52840 Sense` boards:
+  - `arduino_code/XIAO_BLE_IMU_Sender/XIAO_BLE_IMU_Sender.ino` sends scaled IMU data over BLE.
+  - `arduino_code/XIAO_BLE_IMU_Receiver/XIAO_BLE_IMU_Receiver.ino` receives that BLE stream and prints `ax, ay, az, gx, gy, gz` over Serial.
 
 ### 4. Documentation
 
@@ -59,9 +66,13 @@ Welcome to the SmartRacket repository! This project combines hardware, firmware,
 
 ### Firmware
 
-1. Open `arduino code/XIAOEI/XIAOEI.ino` in Arduino IDE.
+1. Open `arduino_code/XIAOEI/XIAOEI.ino` in Arduino IDE.
 2. Select the correct board and port.
 3. Upload the firmware to your device.
+4. For two-board BLE IMU streaming, use the dedicated sender and receiver sketches listed below.
+
+- `arduino_code/XIAO_BLE_IMU_Sender/XIAO_BLE_IMU_Sender.ino` on the transmitting XIAO board
+- `arduino_code/XIAO_BLE_IMU_Receiver/XIAO_BLE_IMU_Receiver.ino` on the receiving XIAO board
 
 ### 3D Models
 

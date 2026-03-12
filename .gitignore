@@ -1,1 +1,6 @@
 plotter/.vscode/settings.json
+.github/
+.agents/
+memory-bank/
+.arduino-build/
+.copilot-tracking/

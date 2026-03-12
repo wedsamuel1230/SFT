@@ -14,7 +14,7 @@ This folder contains the firmware for the SmartRacket hardware, written for Ardu
 - Supported microcontroller: **Seeed Studio XIAO nRF52840 Sense** (recommended)
 - Required libraries:
     - **ei-sft-arduino-1.0.2.zip** (provided in this repo)
-        - To install: In Arduino IDE, go to **Sketch > Include Library > Add .ZIP Library...** and select `ei-sft-arduino-1.0.2 (1).zip` from the `arduino code` folder.
+        - To install: In Arduino IDE, go to **Sketch > Include Library > Add .ZIP Library...** and select `ei-sft-arduino-1.0.2 (1).zip` from the `arduino_code` folder.
     - Other dependencies: `LSM6DS3`, `Wire`, `bluefruit`, `nrf_power`, `nrf_gpio` (install via Library Manager if needed)
 
 ### Uploading the Firmware
