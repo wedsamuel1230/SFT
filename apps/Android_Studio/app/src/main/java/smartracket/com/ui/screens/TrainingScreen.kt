@@ -4,14 +4,18 @@ import android.Manifest
 import android.os.Build
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
@@ -72,6 +77,7 @@ fun TrainingScreen(
     val preparationStep by viewModel.preparationStep.collectAsState()
     val warmUpPlan by viewModel.warmUpPlan.collectAsState()
     val warmUpElapsedTime by viewModel.warmUpElapsedTime.collectAsState()
+    val warmUpRequiredForConnection by viewModel.warmUpRequiredForConnection.collectAsState()
     val restReminder by viewModel.showRestReminder.collectAsState()
     val strings = LocalAppStrings.current
 
@@ -275,16 +281,18 @@ fun TrainingScreen(
                             TrainingPreparationStep.WARM_UP -> WarmUpContent(
                                 plan = warmUpPlan,
                                 elapsedTimeMs = warmUpElapsedTime,
+                                warmUpRequiredForConnection = warmUpRequiredForConnection,
                                 onSkip = viewModel::skipWarmUp,
-                                onFinish = viewModel::completeWarmUp
+                                onStartTraining = viewModel::startTrainingFromWarmUp
                             )
                         }
                     }
                     SessionState.WARMING_UP -> WarmUpContent(
                         plan = warmUpPlan,
                         elapsedTimeMs = warmUpElapsedTime,
+                        warmUpRequiredForConnection = warmUpRequiredForConnection,
                         onSkip = viewModel::skipWarmUp,
-                        onFinish = viewModel::completeWarmUp
+                        onStartTraining = viewModel::startTrainingFromWarmUp
                     )
                     SessionState.STARTING -> {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -532,11 +540,8 @@ private fun SportSelectionContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Spacer(modifier = Modifier.height(SportSelectionLayoutSpec.sectionTopSpacingDp.dp))
             Text(
                 text = strings.chooseSportTitle,
                 style = MaterialTheme.typography.headlineMedium,
@@ -551,27 +556,34 @@ private fun SportSelectionContent(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+                contentPadding = PaddingValues(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(SportSelectionLayoutSpec.gridSpacingDp.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
                 itemsIndexed(availableSports.chunked(2)) { _, rowSports ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        rowSports.forEach { sport ->
-                            SportCard(
-                                sport = sport,
-                                selected = selectedSport == sport,
-                                modifier = Modifier.weight(1f),
-                                onClick = { onSelectSport(sport) }
-                            )
-                        }
-                        if (rowSports.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
+                    if (rowSports.size == 1) {
+                        SportCard(
+                            sport = rowSports.first(),
+                            selected = selectedSport == rowSports.first(),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { onSelectSport(rowSports.first()) }
+                        )
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(SportSelectionLayoutSpec.gridSpacingDp.dp)
+                        ) {
+                            rowSports.forEach { sport ->
+                                SportCard(
+                                    sport = sport,
+                                    selected = selectedSport == sport,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { onSelectSport(sport) }
+                                )
+                            }
                         }
                     }
                 }
@@ -583,6 +595,7 @@ private fun SportSelectionContent(
             enabled = selectedSport != null,
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(bottom = 16.dp)
                 .height(56.dp),
             shape = MaterialTheme.shapes.extraLarge
@@ -599,30 +612,37 @@ private fun SportCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val iconRes = remember(sport) { SportSelectionIconLibrary.iconFor(sport) }
     Card(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)) else null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .defaultMinSize(minHeight = 138.dp)
                 .clickable(onClick = onClick)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(SportSelectionLayoutSpec.cardPaddingDp.dp),
+            verticalArrangement = Arrangement.spacedBy(SportSelectionLayoutSpec.cardContentSpacingDp.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.SportsTennis,
+            Image(
+                painter = painterResource(iconRes),
                 contentDescription = null,
-                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier
+                    .size(SportSelectionLayoutSpec.iconSizeDp.dp)
+                    .clip(MaterialTheme.shapes.medium),
+                contentScale = ContentScale.Crop
             )
             Text(
                 text = sport.displayName,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -632,8 +652,9 @@ private fun SportCard(
 private fun WarmUpContent(
     plan: WarmUpPlan?,
     elapsedTimeMs: Long,
+    warmUpRequiredForConnection: Boolean,
     onSkip: () -> Unit,
-    onFinish: () -> Unit
+    onStartTraining: () -> Unit
 ) {
     val strings = LocalAppStrings.current
     val progress = if (plan == null || plan.totalDurationSeconds == 0) {
@@ -641,12 +662,28 @@ private fun WarmUpContent(
     } else {
         (elapsedTimeMs.toFloat() / (plan.totalDurationSeconds * 1000f)).coerceIn(0f, 1f)
     }
+    val scrollState = rememberScrollState()
+    val currentStepIndex = remember(plan, elapsedTimeMs) {
+        WarmUpProgress.currentStepIndex(plan, elapsedTimeMs)
+    }
+    val canStartTraining = remember(plan, elapsedTimeMs, warmUpRequiredForConnection) {
+        WarmUpActionRules.canStartTraining(
+            plan = plan,
+            elapsedTimeMs = elapsedTimeMs,
+            warmUpRequiredForConnection = warmUpRequiredForConnection
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = strings.warmUpTitle,
@@ -659,48 +696,84 @@ private fun WarmUpContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
-            Text(
-                text = formatTime(elapsedTimeMs),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold
-            )
+            if (warmUpRequiredForConnection) {
+                LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                Text(
+                    text = formatTime(elapsedTimeMs),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold
+                )
 
-            plan?.steps?.forEach { step ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                plan?.steps?.forEachIndexed { index, step ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (index == currentStepIndex) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ),
+                        border = if (index == currentStepIndex) {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                        } else {
+                            null
+                        }
                     ) {
-                        Text(step.title, style = MaterialTheme.typography.bodyLarge)
-                        Text("${step.durationSeconds}s", style = MaterialTheme.typography.labelLarge)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    step.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (index == currentStepIndex) FontWeight.SemiBold else FontWeight.Medium
+                                )
+                                Text("${step.durationSeconds}s", style = MaterialTheme.typography.labelLarge)
+                            }
+                            Text(
+                                text = step.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = onFinish,
+                onClick = onStartTraining,
+                enabled = canStartTraining,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = MaterialTheme.shapes.extraLarge
             ) {
                 Text(strings.finishWarmUp, fontWeight = FontWeight.Bold)
             }
-            OutlinedButton(
-                onClick = onSkip,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = MaterialTheme.shapes.extraLarge
-            ) {
-                Text(strings.skipWarmUp)
+            if (warmUpRequiredForConnection) {
+                OutlinedButton(
+                    onClick = onSkip,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    Text(strings.skipWarmUp)
+                }
             }
         }
     }

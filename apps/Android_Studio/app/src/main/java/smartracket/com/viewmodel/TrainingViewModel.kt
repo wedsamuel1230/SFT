@@ -57,6 +57,9 @@ class TrainingViewModel @Inject constructor(
     private val _warmUpElapsedTime = MutableStateFlow(0L)
     val warmUpElapsedTime: StateFlow<Long> = _warmUpElapsedTime.asStateFlow()
 
+    private val _warmUpRequiredForConnection = MutableStateFlow(true)
+    val warmUpRequiredForConnection: StateFlow<Boolean> = _warmUpRequiredForConnection.asStateFlow()
+
     private val _showRestReminder = MutableStateFlow<RestReminderUiState?>(null)
     val showRestReminder: StateFlow<RestReminderUiState?> = _showRestReminder.asStateFlow()
 
@@ -65,6 +68,8 @@ class TrainingViewModel @Inject constructor(
     private var timerJob: Job? = null
     private var warmUpJob: Job? = null
     private var restReminderCount = 0
+    private var connectedDeviceId: String? = null
+    private var sportSelectionRequiredForConnection = true
     
     // ============= Stroke & Feedback =============
     
@@ -125,10 +130,33 @@ class TrainingViewModel @Inject constructor(
         // Listen for connection state changes
         viewModelScope.launch {
             connectionState.collect { state ->
-                if (state is BluetoothConnectionState.Error) {
-                    _errorMessage.value = state.message
-                } else if (state is BluetoothConnectionState.Connected && _sessionState.value == SessionState.IDLE) {
-                    syncConnectedDevice(state.device)
+                when (state) {
+                    is BluetoothConnectionState.Error -> {
+                        _errorMessage.value = state.message
+                    }
+                    is BluetoothConnectionState.Connected -> {
+                        val isNewConnection = connectedDeviceId != state.device.deviceId
+                        if (isNewConnection) {
+                            connectedDeviceId = state.device.deviceId
+                            sportSelectionRequiredForConnection = true
+                            _warmUpRequiredForConnection.value = true
+                        }
+
+                        if (_sessionState.value == SessionState.IDLE) {
+                            syncConnectedDevice(
+                                device = state.device,
+                                isNewConnection = isNewConnection
+                            )
+                        }
+                    }
+                    else -> {
+                        connectedDeviceId = null
+                        sportSelectionRequiredForConnection = true
+                        _warmUpRequiredForConnection.value = true
+                        if (_sessionState.value == SessionState.IDLE) {
+                            _preparationStep.value = TrainingPreparationStep.SPORT_SELECTION
+                        }
+                    }
                 }
             }
         }
@@ -200,6 +228,8 @@ class TrainingViewModel @Inject constructor(
         viewModelScope.launch {
             persistDeviceSport(sport)
         }
+        sportSelectionRequiredForConnection = false
+        _warmUpRequiredForConnection.value = true
         _warmUpPlan.value = WarmUpPlans.forSport(sport)
         _warmUpElapsedTime.value = 0L
         _preparationStep.value = TrainingPreparationStep.WARM_UP
@@ -233,10 +263,32 @@ class TrainingViewModel @Inject constructor(
         if (_sessionState.value != SessionState.WARMING_UP) return
 
         warmUpJob?.cancel()
+        _warmUpRequiredForConnection.value = false
         startActiveSession(
             sport = _selectedSport.value ?: Sport.TABLE_TENNIS,
             warmUpState = WarmUpState.SKIPPED,
             warmUpDurationMs = _warmUpElapsedTime.value
+        )
+    }
+
+    fun startTrainingFromWarmUp() {
+        if (!WarmUpActionRules.canStartTraining(
+                plan = _warmUpPlan.value,
+                elapsedTimeMs = _warmUpElapsedTime.value,
+                warmUpRequiredForConnection = _warmUpRequiredForConnection.value
+            )) {
+            return
+        }
+
+        if (_warmUpRequiredForConnection.value) {
+            completeWarmUp()
+            return
+        }
+
+        startActiveSession(
+            sport = _selectedSport.value ?: Sport.TABLE_TENNIS,
+            warmUpState = WarmUpState.SKIPPED,
+            warmUpDurationMs = 0L
         )
     }
 
@@ -363,7 +415,6 @@ class TrainingViewModel @Inject constructor(
         timerJob?.cancel()
         warmUpJob?.cancel()
         stopTrainingService()
-        _sessionState.value = SessionState.IDLE
         _currentSession.value = null
         _elapsedTime.value = 0
         _strokeCount.value = 0
@@ -373,7 +424,21 @@ class TrainingViewModel @Inject constructor(
         _warmUpElapsedTime.value = 0L
         _showRestReminder.value = null
         restReminderCount = 0
-        _preparationStep.value = TrainingPreparationStep.SPORT_SELECTION
+        _warmUpPlan.value = _selectedSport.value?.let(WarmUpPlans::forSport)
+        val nextPreparationStep = TrainingPreparationFlowRules.stepAfterSessionReset(
+            isConnected = connectionState.value is BluetoothConnectionState.Connected,
+            selectedSport = _selectedSport.value,
+            selectionRequired = sportSelectionRequiredForConnection
+        )
+        _preparationStep.value = nextPreparationStep
+        _sessionState.value = TrainingPreparationFlowRules.sessionStateAfterSessionReset(
+            nextPreparationStep = nextPreparationStep,
+            warmUpRequiredForConnection = _warmUpRequiredForConnection.value
+        )
+
+        if (_sessionState.value == SessionState.WARMING_UP) {
+            beginWarmUp()
+        }
     }
     
     private fun startTimer() {
@@ -402,7 +467,10 @@ class TrainingViewModel @Inject constructor(
         }
     }
 
-    private suspend fun syncConnectedDevice(device: DevicePairing) {
+    private suspend fun syncConnectedDevice(
+        device: DevicePairing,
+        isNewConnection: Boolean
+    ) {
         val deviceDao = database.devicePairingDao()
         val existing = deviceDao.getByMacAddress(device.bluetoothMacAddress)
         val merged = (existing ?: device).copy(
@@ -417,9 +485,14 @@ class TrainingViewModel @Inject constructor(
             addedAt = existing?.addedAt ?: device.addedAt
         )
         deviceDao.insert(merged)
-        if (_selectedSport.value == null) {
+        if (_selectedSport.value == null || isNewConnection) {
             _selectedSport.value = merged.defaultSport
         }
+        _warmUpPlan.value = _selectedSport.value?.let(WarmUpPlans::forSport)
+        _preparationStep.value = TrainingPreparationFlowRules.stepAfterConnection(
+            isNewConnection = sportSelectionRequiredForConnection,
+            selectedSport = _selectedSport.value
+        )
     }
 
     private suspend fun persistDeviceSport(sport: Sport) {
