@@ -321,7 +321,8 @@ private fun StatisticsTab(
 ) {
     val strings = LocalAppStrings.current
     val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
-    var strokeCardBounds by remember { mutableStateOf<Rect?>(null) }
+    var overviewCardBounds by remember { mutableStateOf<Rect?>(null) }
+    var breakdownCardBounds by remember { mutableStateOf<Rect?>(null) }
 
     Box(
         modifier = Modifier
@@ -339,6 +340,9 @@ private fun StatisticsTab(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            overviewCardBounds = coordinates.boundsInWindow()
+                        }
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -379,9 +383,6 @@ private fun StatisticsTab(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onGloballyPositioned { coordinates ->
-                            strokeCardBounds = coordinates.boundsInWindow()
-                        }
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -412,24 +413,14 @@ private fun StatisticsTab(
                 }
             }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(onClick = { onShare(strokeCardBounds?.toAndroidRect()) }) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = strings.shareLabel
-                        )
-                    }
-                }
-            }
-
             // Stroke type breakdown
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            breakdownCardBounds = coordinates.boundsInWindow()
+                        }
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -446,6 +437,24 @@ private fun StatisticsTab(
                             StrokeTypeRow(item = item)
                             Spacer(modifier = Modifier.height(8.dp))
                         }
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(
+                        onClick = {
+                            onShare(combineBounds(overviewCardBounds, breakdownCardBounds)?.toAndroidRect())
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = strings.shareLabel
+                        )
                     }
                 }
             }
@@ -556,7 +565,9 @@ private fun TrendsTab(
 ) {
     val strings = LocalAppStrings.current
     val pullRefreshState = rememberPullRefreshState(refreshing = isLoading, onRefresh = onRefresh)
+    val trendInsight = remember(scoreTrend) { buildTrendInsight(scoreTrend) }
     var trendCardBounds by remember { mutableStateOf<Rect?>(null) }
+    var insightsCardBounds by remember { mutableStateOf<Rect?>(null) }
 
     Box(
         modifier = Modifier
@@ -606,24 +617,14 @@ private fun TrendsTab(
                 }
             }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(onClick = { onShare(trendCardBounds?.toAndroidRect()) }) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = strings.shareLabel
-                        )
-                    }
-                }
-            }
-
             // Performance insights
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            insightsCardBounds = coordinates.boundsInWindow()
+                        }
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
@@ -636,11 +637,22 @@ private fun TrendsTab(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (scoreTrend.size >= 2) {
-                            val trend = scoreTrend.last().score - scoreTrend.first().score
-                            val trendIcon = if (trend >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown
-                            val trendColor = if (trend >= 0) SmartRacketColors.ScoreExcellent else SmartRacketColors.ScorePoor
-                            val trendText = if (trend >= 0) strings.improving else strings.declining
+                        if (trendInsight != null) {
+                            val trendIcon = when (trendInsight.direction) {
+                                TrendDirection.IMPROVING -> Icons.Default.TrendingUp
+                                TrendDirection.DECLINING -> Icons.Default.TrendingDown
+                                TrendDirection.STABLE -> Icons.Default.TrendingFlat
+                            }
+                            val trendColor = when (trendInsight.direction) {
+                                TrendDirection.IMPROVING -> SmartRacketColors.ScoreExcellent
+                                TrendDirection.DECLINING -> SmartRacketColors.ScorePoor
+                                TrendDirection.STABLE -> SmartRacketColors.ScoreGood
+                            }
+                            val trendText = when (trendInsight.direction) {
+                                TrendDirection.IMPROVING -> strings.improving
+                                TrendDirection.DECLINING -> strings.declining
+                                TrendDirection.STABLE -> "Stable"
+                            }
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically
@@ -652,10 +664,18 @@ private fun TrendsTab(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Your performance is $trendText (${if (trend >= 0) "+" else ""}${String.format("%.1f", trend)} points)",
+                                    text = "Recent period: $trendText (${if (trendInsight.delta >= 0f) "+" else ""}${String.format("%.1f", trendInsight.delta)} points)",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = trendInsight.advice,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                            )
                         } else {
                             Text(
                                 text = strings.performanceInsightsEmpty,
@@ -663,6 +683,24 @@ private fun TrendsTab(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                         }
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(
+                        onClick = {
+                            onShare(combineBounds(trendCardBounds, insightsCardBounds)?.toAndroidRect())
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = strings.shareLabel
+                        )
                     }
                 }
             }
@@ -683,6 +721,25 @@ private fun Rect.toAndroidRect(): android.graphics.Rect {
         right.roundToInt(),
         bottom.roundToInt()
     )
+}
+
+private fun combineBounds(first: Rect?, second: Rect?): Rect? {
+    return when {
+        first == null -> second
+        second == null -> first
+        else -> Rect(
+            left = minOf(first.left, second.left),
+            top = minOf(first.top, second.top),
+            right = maxOf(first.right, second.right),
+            bottom = maxOf(first.bottom, second.bottom)
+        )
+    }
+}
+
+// TrendDirection and TrendInsight moved to TrendInsightCalculator.kt for better testability
+
+private fun buildTrendInsight(scoreTrend: List<ScoreTrendPoint>): TrendInsight? {
+    return TrendInsightCalculator.calculateTrendInsight(scoreTrend)
 }
 
 private fun buildSessionShareText(strings: smartracket.com.ui.i18n.AppStrings, session: SessionDetailUi): String {
@@ -740,14 +797,18 @@ private fun buildTrendsShareText(
         append(strings.shareTrendsTitle)
         append("\n\n")
 
-        if (scoreTrend.size >= 2) {
-            val first = scoreTrend.first().score
+        val insight = buildTrendInsight(scoreTrend)
+        if (insight != null) {
             val last = scoreTrend.last().score
-            val delta = last - first
-            val trendLabel = if (delta >= 0) strings.improving else strings.declining
+            val trendLabel = when (insight.direction) {
+                TrendDirection.IMPROVING -> strings.improving
+                TrendDirection.DECLINING -> strings.declining
+                TrendDirection.STABLE -> "Stable"
+            }
 
             append("${strings.scoreTrend}: ${String.format("%.1f", last)}\n")
-            append("${strings.performanceInsights}: $trendLabel (${if (delta >= 0) "+" else ""}${String.format("%.1f", delta)})")
+            append("${strings.performanceInsights}: $trendLabel (${if (insight.delta >= 0f) "+" else ""}${String.format("%.1f", insight.delta)})\n")
+            append("Advice: ${insight.advice}")
         } else {
             append(strings.notEnoughData)
         }
