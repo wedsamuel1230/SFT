@@ -1,6 +1,7 @@
 package smartracket.com.di
 
 import android.content.Context
+import android.content.SharedPreferences
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -41,6 +42,15 @@ object AppModule {
     @Singleton
     fun provideBluetoothManager(@ApplicationContext context: Context): BluetoothManager {
         return BluetoothManager(context)
+    }
+
+    /**
+     * Provides SharedPreferences instance for feature flags and configuration.
+     */
+    @Provides
+    @Singleton
+    fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+        return context.getSharedPreferences("smartracket_prefs", Context.MODE_PRIVATE)
     }
 
     /**

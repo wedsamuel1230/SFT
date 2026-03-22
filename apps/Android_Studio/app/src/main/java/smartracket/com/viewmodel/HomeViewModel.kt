@@ -13,6 +13,7 @@ import smartracket.com.repository.HealthRepository
 import smartracket.com.repository.TrainingRepository
 import smartracket.com.repository.FirebaseStatsGateway
 import smartracket.com.repository.SessionMergeService
+import smartracket.com.util.FeatureFlags
 import smartracket.com.ui.screens.AllTimeStatsUi
 import smartracket.com.ui.screens.RecentSessionUi
 import smartracket.com.ui.screens.TodaySummaryUi
@@ -25,13 +26,12 @@ import javax.inject.Inject
  *
  * Provides:
  * - Today's training summary
- * - All-time statistics
+ * - All-time statistics (merged local + Firebase when feature enabled)
  * - Recent sessions list
  * - Bluetooth connection state
- * 
- * NOTE: Injections for firebaseStatsGateway and sessionMergeService are ready
- * for Phase D ViewModel wiring (currently using local-only stats until merged
- * stats loading is fully integrated).
+ *
+ * NOTE: Merged stats feature is controlled by FeatureFlags.isMergedStatsEnabled()
+ * and can be toggled for safe rollout and testing.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -39,7 +39,8 @@ class HomeViewModel @Inject constructor(
     private val bluetoothRepository: BluetoothRepository,
     private val healthRepository: HealthRepository,
     private val firebaseStatsGateway: FirebaseStatsGateway,
-    private val sessionMergeService: SessionMergeService
+    private val sessionMergeService: SessionMergeService,
+    private val featureFlags: FeatureFlags
 ) : ViewModel() {
 
     // Bluetooth connection state
@@ -101,19 +102,32 @@ class HomeViewModel @Inject constructor(
     /**
      * Load all-time stats by merging local Room sessions with cloud Firestore sessions.
      * This enables stats visibility after local cleanup via cloud backup.
-     * Called from loadData() as part of Phase D ViewModel wiring.
+     * Controlled by FeatureFlags.isMergedStatsEnabled() for safe rollout.
      */
     private suspend fun loadMergedAllTimeStats() {
         try {
+            // Check feature flag before attempting merged stats
+            if (!featureFlags.isMergedStatsEnabled()) {
+                // Feature disabled: use local-only stats (fallback)
+                val localStats = trainingRepository.getAllTimeStats()
+                _allTimeStats.value = AllTimeStatsUi(
+                    totalSessions = localStats.totalSessions,
+                    totalStrokes = localStats.totalStrokes,
+                    avgScore = localStats.avgScore,
+                    totalTrainingTimeMs = localStats.totalTrainingTimeMs
+                )
+                return
+            }
+
             // Fetch local sessions from Room database
             val localSessions = trainingRepository.getAllSessions()
-            
+
             // Fetch cloud sessions from Firestore (gracefully returns empty if unavailable)
             val cloudSessions = firebaseStatsGateway.getCloudSessions()
-            
+
             // Merge: dedup by sessionId, prefer local, include cloud-only
             val mergedSessions = sessionMergeService.mergeSessions(localSessions, cloudSessions)
-            
+
             // Compute stats from merged sessions
             val stats = computeAllTimeStatsFromSessions(mergedSessions)
             _allTimeStats.value = stats

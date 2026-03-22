@@ -12,6 +12,7 @@ import smartracket.com.model.TrainingSession
 import smartracket.com.repository.TrainingRepository
 import smartracket.com.repository.FirebaseStatsGateway
 import smartracket.com.repository.SessionMergeService
+import smartracket.com.util.FeatureFlags
 import smartracket.com.ui.screens.DateFilterOption
 import smartracket.com.ui.screens.ScoreTrendPoint
 import java.text.SimpleDateFormat
@@ -22,19 +23,20 @@ import javax.inject.Inject
  * ViewModel for the Analytics Screen.
  *
  * Provides:
- * - Session history with filtering (merged from local Room + Firebase)
+ * - Session history with filtering (merged from local Room + Firebase when feature enabled)
  * - Stroke distribution statistics
  * - Score trends over time
  * - Detailed session analytics
  *
- * Phase D: Updated to use merged stats from Firebase + local Room.
- * Stats remain visible after local cleanup when cloud data exists.
+ * Phase D/E: Updated to use merged stats from Firebase + local Room with feature flag control.
+ * Stats remain visible after local cleanup when cloud data exists and feature is enabled.
  */
 @HiltViewModel
 class AnalyticsViewModel @Inject constructor(
     private val trainingRepository: TrainingRepository,
     private val firebaseStatsGateway: FirebaseStatsGateway,
-    private val sessionMergeService: SessionMergeService
+    private val sessionMergeService: SessionMergeService,
+    private val featureFlags: FeatureFlags
 ) : ViewModel() {
 
     private val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
@@ -89,6 +91,26 @@ class AnalyticsViewModel @Inject constructor(
             val (startDate, endDate) = getDateRange(_dateFilter.value)
 
             try {
+                // Check feature flag before attempting merged stats
+                if (!featureFlags.isMergedStatsEnabled()) {
+                    // Feature disabled: use local-only stats
+                    trainingRepository.getSessionsByDateRangeFlow(startDate, endDate).collect { sessionList ->
+                        _sessions.value = sessionList.map { session ->
+                            val strokes = trainingRepository.getStrokesForSession(session.sessionId)
+                            session.toDetailUi(strokes)
+                        }
+
+                        // Calculate stroke distribution
+                        calculateStrokeDistribution(sessionList)
+
+                        // Calculate score trend
+                        calculateScoreTrend(sessionList)
+
+                        _isLoading.value = false
+                    }
+                    return@launch
+                }
+
                 // Fetch local sessions from Room
                 val localSessionList = trainingRepository.getSessionsByDateRangeFlow(startDate, endDate).first()
 
