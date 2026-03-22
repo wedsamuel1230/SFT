@@ -115,6 +115,14 @@ class TrainingRepository @Inject constructor(
     }
 
     /**
+     * Get all sessions (suspend version for merged stats).
+     * Used by SessionMergeService to fetch local sessions for merging with cloud sessions.
+     */
+    suspend fun getAllSessions(): List<TrainingSession> {
+        return sessionDao.getAll()
+    }
+
+    /**
      * Get recent sessions.
      */
     fun getRecentSessionsFlow(limit: Int = 10): Flow<List<TrainingSession>> {

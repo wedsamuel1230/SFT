@@ -22,7 +22,8 @@ Build a SmartRacket Android app that connects to smart rackets over BLE, tracks 
 - [ ] Multi-sport selection exists before training and supports device default + session override
 - [ ] Warm-up page is shown before active training and can be skipped
 - [ ] Recurring rest reminders trigger during long active sessions
+- [ ] Stats remain visible after Firebase upload even if local data is cleaned, using merged local + cloud reads
 - [ ] Relevant tests and verification steps pass
 
 ---
-Created: 2026-03-10 | Last Updated: 2026-03-10
+Created: 2026-03-10 | Last Updated: 2026-03-22

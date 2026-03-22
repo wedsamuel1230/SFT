@@ -73,6 +73,9 @@ interface TrainingSessionDao {
     @Query("SELECT * FROM training_sessions ORDER BY startTime DESC")
     fun getAllFlow(): Flow<List<TrainingSession>>
 
+    @Query("SELECT * FROM training_sessions ORDER BY startTime DESC")
+    suspend fun getAll(): List<TrainingSession>
+
     @Query("SELECT * FROM training_sessions ORDER BY startTime DESC LIMIT :limit")
     fun getRecentFlow(limit: Int): Flow<List<TrainingSession>>
 

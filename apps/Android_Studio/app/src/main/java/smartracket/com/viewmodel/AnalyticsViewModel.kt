@@ -10,6 +10,8 @@ import smartracket.com.model.Stroke
 import smartracket.com.model.StrokeType
 import smartracket.com.model.TrainingSession
 import smartracket.com.repository.TrainingRepository
+import smartracket.com.repository.FirebaseStatsGateway
+import smartracket.com.repository.SessionMergeService
 import smartracket.com.ui.screens.DateFilterOption
 import smartracket.com.ui.screens.ScoreTrendPoint
 import java.text.SimpleDateFormat
@@ -20,14 +22,19 @@ import javax.inject.Inject
  * ViewModel for the Analytics Screen.
  *
  * Provides:
- * - Session history with filtering
+ * - Session history with filtering (merged from local Room + Firebase)
  * - Stroke distribution statistics
  * - Score trends over time
  * - Detailed session analytics
+ *
+ * Phase D: Updated to use merged stats from Firebase + local Room.
+ * Stats remain visible after local cleanup when cloud data exists.
  */
 @HiltViewModel
 class AnalyticsViewModel @Inject constructor(
-    private val trainingRepository: TrainingRepository
+    private val trainingRepository: TrainingRepository,
+    private val firebaseStatsGateway: FirebaseStatsGateway,
+    private val sessionMergeService: SessionMergeService
 ) : ViewModel() {
 
     private val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
@@ -72,6 +79,7 @@ class AnalyticsViewModel @Inject constructor(
 
     /**
      * Load sessions based on current filter.
+     * Phase D: Uses merged local Room + Firebase Firestore sessions.
      */
     private fun loadData() {
         loadJob?.cancel()
@@ -80,19 +88,45 @@ class AnalyticsViewModel @Inject constructor(
 
             val (startDate, endDate) = getDateRange(_dateFilter.value)
 
-            trainingRepository.getSessionsByDateRangeFlow(startDate, endDate).collect { sessionList ->
-                _sessions.value = sessionList.map { session ->
+            try {
+                // Fetch local sessions from Room
+                val localSessionList = trainingRepository.getSessionsByDateRangeFlow(startDate, endDate).first()
+
+                // Fetch cloud sessions from Firestore
+                val cloudSessionList = firebaseStatsGateway.getCloudSessionsByDateRange(startDate, endDate)
+
+                // Merge: dedup by sessionId, prefer local, include cloud-only
+                val mergedSessionList = sessionMergeService.mergeSessions(localSessionList, cloudSessionList)
+
+                // Update UI with merged sessions
+                _sessions.value = mergedSessionList.map { session ->
                     val strokes = trainingRepository.getStrokesForSession(session.sessionId)
                     session.toDetailUi(strokes)
                 }
 
                 // Calculate stroke distribution
-                calculateStrokeDistribution(sessionList)
+                calculateStrokeDistribution(mergedSessionList)
 
                 // Calculate score trend
-                calculateScoreTrend(sessionList)
+                calculateScoreTrend(mergedSessionList)
 
                 _isLoading.value = false
+            } catch (e: Exception) {
+                // Fallback: use local-only sessions if merge fails
+                trainingRepository.getSessionsByDateRangeFlow(startDate, endDate).collect { sessionList ->
+                    _sessions.value = sessionList.map { session ->
+                        val strokes = trainingRepository.getStrokesForSession(session.sessionId)
+                        session.toDetailUi(strokes)
+                    }
+
+                    // Calculate stroke distribution
+                    calculateStrokeDistribution(sessionList)
+
+                    // Calculate score trend
+                    calculateScoreTrend(sessionList)
+
+                    _isLoading.value = false
+                }
             }
         }
     }

@@ -109,3 +109,19 @@
 **Status:** ✅ Connection-wide warm-up skip and button gating complete, runtime/manual validation pending
 
 ---
+
+## 2026-03-22 — v0.2.0
+
+**Objective:** Produce a concrete implementation plan to keep stats visible after Firebase upload even when local records are cleaned.
+
+**Actions:**
+
+- Loaded required request workflow skills and memory-bank context
+- Validated current behavior: sync marks sessions as synced, while stats screens read Room-only sources
+- Captured product decision to support local cleanup with Firebase-backed stats visibility
+- Authored implementation plan at `memory-bank/plans/2026-03-22-firebase-merged-stats-visibility.md`
+- Updated project brief, active context, and master plan for implementation handoff
+
+**Status:** ✅ Planning complete, implementation queued
+
+---

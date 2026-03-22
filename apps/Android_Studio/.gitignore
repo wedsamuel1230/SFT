@@ -15,3 +15,4 @@
 local.properties
 .agents/
 .github/
+.claude/
