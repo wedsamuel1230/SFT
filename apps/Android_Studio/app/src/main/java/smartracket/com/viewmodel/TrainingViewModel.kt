@@ -112,6 +112,9 @@ class TrainingViewModel @Inject constructor(
 
     private val _showHealthAlert = MutableStateFlow<HealthAlert?>(null)
     val showHealthAlert: StateFlow<HealthAlert?> = _showHealthAlert.asStateFlow()
+
+    private val _showOverloadAlert = MutableStateFlow<OverloadAlertUiState?>(null)
+    val showOverloadAlert: StateFlow<OverloadAlertUiState?> = _showOverloadAlert.asStateFlow()
     
     // ============= Error Handling =============
     
@@ -165,15 +168,8 @@ class TrainingViewModel @Inject constructor(
             }
         }
         
-        // Poll heart rate periodically
-        viewModelScope.launch {
-            while (true) {
-                if (_sessionState.value == SessionState.ACTIVE) {
-                    healthRepository.getLatestHeartRate()
-                }
-                delay(5000)  // Every 5 seconds
-            }
-        }
+        // Temporarily disabled: periodic heart-rate polling triggers SecurityException
+        // when Health Connect heart-rate permission is not granted.
 
         // Listen for health alerts during training
         viewModelScope.launch {
@@ -192,11 +188,16 @@ class TrainingViewModel @Inject constructor(
         _showHealthAlert.value = null
     }
 
+    fun dismissOverloadAlert() {
+        _showOverloadAlert.value = null
+    }
+
     /**
      * Pause session due to health alert and dismiss.
      */
     fun pauseForRest() {
         _showHealthAlert.value = null
+        _showOverloadAlert.value = null
         _showRestReminder.value = null
         pauseSession()
     }
@@ -552,6 +553,23 @@ class TrainingViewModel @Inject constructor(
     // ============= Stroke Processing =============
     
     private suspend fun processMcuStroke(output: McuModelOutput) {
+        val shouldHandlePopup = _sessionState.value == SessionState.ACTIVE || _sessionState.value == SessionState.PAUSED
+        if (shouldHandlePopup && output.isTooHeavy && _showOverloadAlert.value == null) {
+            _showOverloadAlert.value = OverloadAlertUiState(
+                peak = output.peak,
+                stroke = output.stroke
+            )
+        }
+
+        val warningMessage = output.warningMessageOrNull()
+        if (warningMessage != null) {
+            if (shouldHandlePopup) {
+                _currentFeedback.value = warningMessage
+                _strokeAnimationTick.value = _strokeAnimationTick.value + 1
+            }
+            return
+        }
+
         val session = _currentSession.value ?: return
         if (_sessionState.value != SessionState.ACTIVE) return
         

@@ -18,6 +18,11 @@
 
 ## Completed
 
+- [x] Installed and configured follow-builders with daily Chinese digest automation and Discord webhook delivery (2026-03-27)
+- [x] Added heavy-overload popup (peak > 300) and temporarily disabled heart-rate polling to avoid Health Connect permission errors (2026-03-26)
+- [x] Fixed Android handling of firmware overload warning packets and verified with debug unit tests (2026-03-26)
+- [x] Fixed Arduino overload warning emission path in `test_overload/test_overload.ino` and verified compile on XIAO nRF52840 Sense (2026-03-26)
+- [x] Reconciled memory-bank workflow state drift and refreshed session tracking artifacts (2026-03-26)
 - [x] Created implementation plan for the requested features
 - [x] Bootstrapped repository memory-bank structure
 - [x] Added sport metadata persistence and Room schema updates
@@ -36,4 +41,4 @@
 - [x] Created Firebase merged-stats continuity plan at `memory-bank/plans/2026-03-22-firebase-merged-stats-visibility.md`
 
 ---
-Last Updated: 2026-03-22
+Last Updated: 2026-03-26

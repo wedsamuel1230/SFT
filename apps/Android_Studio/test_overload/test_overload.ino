@@ -54,7 +54,6 @@ uint32_t lastMotionSend = 0;
 bool streamingEnabled = true;
 
 LSM6DS3 imu(I2C_MODE, 0x6A);
-bool motionArmed = true;
 
 // ====== Overload Test State ======
 enum TestMode {
@@ -149,12 +148,25 @@ static void handleSerialCommand() {
 }
 
 // ====== Diagnostic: Print Free Memory ======
+#if defined(ARDUINO_ARCH_NRF52)
+extern "C" char* sbrk(int incr);
+
+uint32_t freeMemory() {
+  char stackTop;
+  char* heapEnd = sbrk(0);
+  if (heapEnd == (char*)-1 || &stackTop <= heapEnd) {
+    return 0;
+  }
+  return (uint32_t)(&stackTop - heapEnd);
+}
+#else
 extern "C" char __brkval;
 extern "C" char __heap_start;
 
 uint32_t freeMemory() {
   return (uint32_t)(&__brkval) - (uint32_t)(&__heap_start);
 }
+#endif
 
 // ====== Test: Accel Overload ======
 static void runAccelOverloadTest() {
@@ -178,9 +190,6 @@ static void runAccelOverloadTest() {
   float ax = imu.readFloatAccelX();
   float ay = imu.readFloatAccelY();
   float az = imu.readFloatAccelZ();
-  float gx = imu.readFloatGyroX();
-  float gy = imu.readFloatGyroY();
-  float gz = imu.readFloatGyroZ();
 
   // Amplify accel to simulate overload
   ax *= 2.5;  // Boost to ~5G under normal swing
@@ -188,22 +197,14 @@ static void runAccelOverloadTest() {
   az *= 2.5;
 
   float accelMag = sqrtf(ax * ax + ay * ay + az * az);
-  float accelDelta = fabsf(accelMag - 1.0f);
-  float gyroMag = sqrtf(gx * gx + gy * gy + gz * gz);
+  const bool overload = (accelMag >= ACCEL_OVERLOAD_G);
 
-  const bool overload = (accelDelta > ACCEL_OVERLOAD_G);
-
-  if (!overload && accelDelta < (ACCEL_DELTA_G * 0.45f)) {
-    motionArmed = true;
-  }
-
-  if (overload && motionArmed && (now - lastMotionSend >= MOTION_COOLDOWN_MS)) {
-    motionArmed = false;
+  if (overload && (now - lastMotionSend >= MOTION_COOLDOWN_MS)) {
     lastMotionSend = now;
 
     char payload[96];
     snprintf(payload, sizeof(payload),
-             "{\"ts\":%lu,\"stroke\":\"overload_accel\",\"conf\":0.99,\"peak\":%.1f}\n",
+             "{\"ts\":%lu,\"event\":\"warning\",\"stroke\":\"backhand\",\"conf\":0.99,\"peak\":%.1f}\n",
              now, accelMag * 9.81f);
 
     size_t payloadLen = strlen(payload);
@@ -234,9 +235,6 @@ static void runGyroOverloadTest() {
   }
   lastSample = now;
 
-  float ax = imu.readFloatAccelX();
-  float ay = imu.readFloatAccelY();
-  float az = imu.readFloatAccelZ();
   float gx = imu.readFloatGyroX();
   float gy = imu.readFloatGyroY();
   float gz = imu.readFloatGyroZ();
@@ -246,23 +244,16 @@ static void runGyroOverloadTest() {
   gy *= 2.2;
   gz *= 2.2;
 
-  float accelMag = sqrtf(ax * ax + ay * ay + az * az);
-  float accelDelta = fabsf(accelMag - 1.0f);
   float gyroMag = sqrtf(gx * gx + gy * gy + gz * gz);
 
-  const bool overload = (gyroMag > GYRO_OVERLOAD_DPS);
+  const bool overload = (gyroMag >= GYRO_OVERLOAD_DPS);
 
-  if (!overload && accelDelta < (ACCEL_DELTA_G * 0.45f)) {
-    motionArmed = true;
-  }
-
-  if (overload && motionArmed && (now - lastMotionSend >= MOTION_COOLDOWN_MS)) {
-    motionArmed = false;
+  if (overload && (now - lastMotionSend >= MOTION_COOLDOWN_MS)) {
     lastMotionSend = now;
 
     char payload[96];
     snprintf(payload, sizeof(payload),
-             "{\"ts\":%lu,\"stroke\":\"overload_gyro\",\"conf\":0.99,\"peak\":%.1f}\n",
+             "{\"ts\":%lu,\"event\":\"warning\",\"stroke\":\"forehand\",\"conf\":0.99,\"peak\":%.1f}\n",
              now, gyroMag);
 
     size_t payloadLen = strlen(payload);
@@ -296,7 +287,7 @@ static void runRapidFireTest() {
   if (now - lastRapidFireSend >= RAPID_FIRE_INTERVAL) {
     lastRapidFireSend = now;
 
-    const char* strokes[] = {"forehand", "backhand", "volley", "serve"};
+    const char* strokes[] = {"forehand", "backhand", "idle"};
     uint8_t strokeIdx = notificationsSent % 4;
     float conf = 0.85f + (random(0, 15) / 100.0f);
     float peak = 15.0f + (random(0, 20) / 10.0f);

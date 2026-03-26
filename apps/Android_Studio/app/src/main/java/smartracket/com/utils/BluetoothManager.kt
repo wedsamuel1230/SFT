@@ -506,6 +506,7 @@ class BluetoothManager @Inject constructor(
             McuModelOutput(
                 ts = obj.optLong("ts", System.currentTimeMillis()),
                 stroke = obj.optString("stroke", "unknown"),
+                event = obj.optString("event", ""),
                 conf = obj.optDouble("conf", 0.0).toFloat(),
                 peak = obj.optDouble("peak", 0.0).toFloat()
             )

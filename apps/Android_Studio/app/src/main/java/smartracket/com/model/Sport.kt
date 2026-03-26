@@ -53,6 +53,11 @@ data class RestReminderUiState(
     val elapsedTimeMs: Long
 )
 
+data class OverloadAlertUiState(
+    val peak: Float,
+    val stroke: String
+)
+
 enum class TrainingPreparationStep {
     SPORT_SELECTION,
     WARM_UP

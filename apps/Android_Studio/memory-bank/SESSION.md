@@ -125,3 +125,68 @@
 **Status:** ✅ Planning complete, implementation queued
 
 ---
+
+## 2026-03-26 — v0.2.1
+
+**Objective:** Execute the request workflow initialization protocol and reconcile memory-bank state drift before implementation resumes.
+
+**Actions:**
+
+- Loaded memory-bank files in canonical order and captured a Phase 0 digest with proof references
+- Ran workflow-governor preflight for workflow-surface checks and identified local governance exceptions
+- Loaded required workflow skills (`using-superpowers`, `memory-bank-management`, `validate-skills`, `subagent-orchestration-contracts`)
+- Reconciled contradictory implementation claims in `activeContext.md` to align with plan-first state
+- Added daily log entry for 2026-03-26 and updated `master-plan.md` with workflow hygiene completion
+
+**Status:** ✅ Workflow initialization complete, implementation handoff is now consistent and ready
+
+---
+
+## 2026-03-26 — v0.2.2
+
+**Objective:** Fix overload warning emission so overload events reliably send warning packets in the Arduino overload test sketch.
+
+**Actions:**
+
+- Diagnosed overload path in `test_overload/test_overload.ino`
+- Corrected accel overload trigger to compare against actual G magnitude threshold
+- Removed arm-state suppression in overload test modes so warning packets are not blocked
+- Added explicit warning event marker in overload BLE payloads (`"event":"warning"`)
+- Verified successful firmware compile with `arduino-cli compile --fqbn Seeeduino:nrf52:xiaonRF52840Sense test_overload`
+
+**Status:** ✅ Overload warning emission fixed and compile-verified
+
+---
+
+## 2026-03-26 — v0.2.3
+
+**Objective:** Ensure overload warning packets from firmware are actually surfaced as warnings in the Android app.
+
+**Actions:**
+
+- Identified that app parsed `stroke/conf/peak` but did not classify overload packets as warnings
+- Added `event` parsing and warning semantics to `McuModelOutput`
+- Updated `TrainingViewModel` to show explicit warning feedback for overload packets and skip counting them as normal strokes
+- Added unit tests in `McuModelOutputTest` for warning classification and normal-stroke behavior
+- Ran `./gradlew.bat :app:testDebugUnitTest` and confirmed build/tests are successful
+
+**Status:** ✅ Overload warning path works end-to-end (firmware event -> app warning feedback)
+
+---
+
+## 2026-03-26 — v0.2.4
+
+**Objective:** Show explicit popup when overload peak is too high (>300) and temporarily stop heart-rate polling to avoid permission errors.
+
+**Actions:**
+
+- Added heavy overload threshold behavior in `McuModelOutput` (`isTooHeavy` when peak > 300)
+- Added `OverloadAlertUiState` and wired popup dialog rendering in `TrainingScreen`
+- Updated `TrainingViewModel.processMcuStroke` to trigger popup for heavy warning packets
+- Temporarily removed periodic `healthRepository.getLatestHeartRate()` polling in `TrainingViewModel` init
+- Added/updated RED-GREEN unit checks in `McuModelOutputTest`
+- Ran targeted test (`McuModelOutputTest`) and full debug unit suite
+
+**Status:** ✅ Heavy overload popup enabled; heart-rate polling temporarily disabled; tests green
+
+---

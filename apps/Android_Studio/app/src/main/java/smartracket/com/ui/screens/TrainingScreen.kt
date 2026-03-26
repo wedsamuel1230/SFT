@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -73,6 +74,7 @@ fun TrainingScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
     val healthAlert by viewModel.showHealthAlert.collectAsState()
+    val overloadAlert by viewModel.showOverloadAlert.collectAsState()
     val selectedSport by viewModel.selectedSport.collectAsState()
     val preparationStep by viewModel.preparationStep.collectAsState()
     val warmUpPlan by viewModel.warmUpPlan.collectAsState()
@@ -80,6 +82,51 @@ fun TrainingScreen(
     val warmUpRequiredForConnection by viewModel.warmUpRequiredForConnection.collectAsState()
     val restReminder by viewModel.showRestReminder.collectAsState()
     val strings = LocalAppStrings.current
+
+    overloadAlert?.let { alert ->
+        val strokeLabel = StrokeType.fromString(alert.stroke).displayName
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissOverloadAlert() },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Too Heavy Swing Detected",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(
+                    text = String.format(
+                        Locale.US,
+                        "%s peak = %.1f (> %.0f). Please reduce force and recover.",
+                        strokeLabel,
+                        alert.peak,
+                        McuModelOutput.HEAVY_PEAK_THRESHOLD
+                    ),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.dismissOverloadAlert() }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.pauseForRest() }) {
+                    Text("Pause")
+                }
+            }
+        )
+    }
 
     // Health alert dialog
     healthAlert?.let { alert ->
