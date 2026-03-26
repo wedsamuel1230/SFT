@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -27,6 +28,7 @@ import javax.inject.Inject
 class TrainingSessionService : Service() {
 
     companion object {
+        private const val TAG = "TrainingSessionService"
         const val CHANNEL_ID = "smartracket_training_channel"
         const val NOTIFICATION_ID = 1002
 
@@ -77,14 +79,20 @@ class TrainingSessionService : Service() {
     private fun startForegroundService() {
         val notification = createNotification(0, 0)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (securityException: SecurityException) {
+            Log.e(TAG, "Missing permission for health foreground service", securityException)
+            stopSelf()
+            return
         }
 
         // Update notification periodically
