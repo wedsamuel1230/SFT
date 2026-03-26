@@ -1,9 +1,13 @@
 package smartracket.com.viewmodel
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -511,6 +515,11 @@ class TrainingViewModel @Inject constructor(
         initialElapsedMs: Long = 0L,
         initialReminderCount: Int = 0
     ) {
+        if (!hasHealthForegroundServiceRuntimePermission()) {
+            _errorMessage.value = "Training permissions required. Please allow Activity Recognition or Body Sensors in system settings."
+            return
+        }
+
         val intent = Intent(context, TrainingSessionService::class.java).apply {
             action = TrainingSessionService.ACTION_START
             putExtra(TrainingSessionService.EXTRA_SESSION_ID, session.sessionId)
@@ -519,6 +528,18 @@ class TrainingViewModel @Inject constructor(
             putExtra(TrainingSessionService.EXTRA_INITIAL_REMINDER_COUNT, initialReminderCount)
         }
         context.startForegroundService(intent)
+    }
+
+    private fun hasHealthForegroundServiceRuntimePermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true
+
+        return hasPermission(Manifest.permission.ACTIVITY_RECOGNITION) ||
+            hasPermission(Manifest.permission.BODY_SENSORS) ||
+            hasPermission(Manifest.permission.HIGH_SAMPLING_RATE_SENSORS)
+    }
+
+    private fun hasPermission(permission: String): Boolean {
+        return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun stopTrainingService() {
